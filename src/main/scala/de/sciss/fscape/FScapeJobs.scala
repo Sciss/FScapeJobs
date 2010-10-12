@@ -212,8 +212,8 @@ object FScapeJobs {
    }
 
    case class Concat( in1: String, in2: String, out: String, spec: AudioFileSpec = OutputSpec.aiffFloat,
-                      gain: Gain = Gain.immediate, offset: String = "0.0", length: String = "1.0",
-                      overlap: String = "0.0", fade: String = "1.0", cross: String = "eqp" )
+                      gain: Gain = Gain.immediate, offset: String = "0.0s", length: String = "1.0",
+                      overlap: String = "0.0", fade: String = "0.0", cross: String = "eqp" )
    extends Doc {
       def className = "Concat"
 
