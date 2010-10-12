@@ -211,6 +211,31 @@ object FScapeJobs {
       }
    }
 
+   case class Concat( in1: String, in2: String, out: String, spec: AudioFileSpec = OutputSpec.aiffFloat,
+                      gain: Gain = Gain.immediate, offset: String = "0.0", length: String = "1.0",
+                      overlap: String = "0.0", fade: String = "1.0", cross: String = "eqp" )
+   extends Doc {
+      def className = "Concat"
+
+      def toProperties( p: Properties ) {
+         p.setProperty( "InputFile1", in1 )
+         p.setProperty( "InputFile2", in2 )
+         p.setProperty( "OutputFile", out )
+         p.setProperty( "OutputType", audioFileType( spec ))
+         p.setProperty( "OutputReso", audioFileRes( spec ))
+         p.setProperty( "GainType", gainType( gain ))
+         p.setProperty( "Gain", dbAmp( gain.value ))
+         p.setProperty( "FadeType", (cross match {
+            case "lin"   => 0
+            case "eqp"   => 1
+         }).toString )
+         p.setProperty( "Offset", absMsFactorTime( offset ))
+         p.setProperty( "Length", absRelMsFactorOffsetTime( length ))
+         p.setProperty( "Overlap", absRelMsFactorOffsetTime( overlap ))
+         p.setProperty( "Fade", absMsFactorTime( fade ))
+      }
+   }
+
    case class Convolution( in: String, impIn: String, out: String,
       spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
       mode: String = "conv", morphType: String = "rect", length: String = "full",
@@ -620,6 +645,10 @@ object FScapeJobs {
       if( s.endsWith( "s" )) absMsTime( s ) else factorTime( s )
    }
 
+   private def absRelMsFactorOffsetTime( s: String ) : String = {
+      if( s.endsWith( "s" )) absRelMsTime( s ) else factorOffsetTime( s )
+   }
+
    private def par( value: Double, unit: Int ) : String = Param( value, unit ).toString
 
    private def absRelHzSemiFreq( s: String ) : String = {
@@ -645,7 +674,8 @@ object FScapeJobs {
    }
 
    private def offsetFreq( s: String ) : String = {
-      Param( s.toDouble * 100, Param.OFFSET_FREQ ).toString
+      val s0 = if( s.startsWith( "+" )) s.substring( 1 ) else s
+      Param( s0.toDouble * 100, Param.OFFSET_FREQ ).toString
    }
 
    private def dbAmp( s: String ) : String = {
@@ -661,8 +691,21 @@ object FScapeJobs {
       Param( s.toDouble * 100, Param.FACTOR_AMP ).toString
    }
 
+   private def factorOffsetTime( s: String ) : String = {
+      if( s.startsWith( "+" ) || s.startsWith( "-" )) offsetTime( s ) else factorTime( s )
+   }
+
+   private def offsetTime( s: String ) : String = {
+      val s0 = if( s.startsWith( "+" )) s.substring( 1 ) else s
+      Param( s0.toDouble * 100, Param.OFFSET_TIME ).toString
+   }
+
    private def factorTime( s: String ) : String = {
       Param( s.toDouble * 100, Param.FACTOR_TIME ).toString
+   }
+
+   private def absRelMsTime( s: String ) : String = {
+      if( s.startsWith( "+" ) || s.startsWith( "-" )) offsetMsTime( s ) else absMsTime( s )
    }
 
    private def absMsTime( s: String ) : String = {
@@ -672,7 +715,8 @@ object FScapeJobs {
 
    private def offsetMsTime( s: String ) : String = {
       require( s.endsWith( "s" ))
-      Param( s.substring( 0, s.length - 1 ).toDouble * 1000, Param.OFFSET_MS ).toString
+      val i = if( s.startsWith( "+" )) 1 else 0
+      Param( s.substring( i, s.length - 1 ).toDouble * 1000, Param.OFFSET_MS ).toString
    }
 
    private def gainType( gain: Gain ) : String = {
