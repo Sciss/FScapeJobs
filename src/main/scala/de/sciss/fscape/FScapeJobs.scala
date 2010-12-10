@@ -519,7 +519,7 @@ object FScapeJobs {
             case "forward" => 3
          }).toString )
          p.setProperty( "CorrLength", (math.log( 131072 / corrLen ) / math.log( 2 )).toInt.toString )
-         p.setProperty( "CorrStep",  (math.log( 131072 / corrLen ) / math.log( 2 )).toInt.toString )
+         p.setProperty( "CorrStep",  (math.log( 131072 / corrStep ) / math.log( 2 )).toInt.toString )
          p.setProperty( "MinSpacing", absMsTime( minSpacing ))
          p.setProperty( "MaxSpacing", absMsTime( maxSpacing ))
          p.setProperty( "MinXFade", absMsTime( minXFade ))
