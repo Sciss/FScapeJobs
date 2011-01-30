@@ -2,7 +2,7 @@
  *  FScapeJobs.scala
  *  (FScapeJobs)
  *
- *  Copyright (c) 2010 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2010-2011 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -276,6 +276,53 @@ object FScapeJobs {
          p.setProperty( "Morph", (numIRs > 1).toString )
 //         p.setProperty( "IRModEnv", x )
          p.setProperty( "MinPhase", minPhase.toString )
+      }
+   }
+
+   /**
+    * @param   mode     either of "up" or "down"
+    * @param   chanUp   either of "min" or "max"
+    * @param   chanDown either of "min" or "max"
+    * @param   spacing  if None, this corresponds to original spacing, otherwise Some( timeSecs )
+    */
+   case class DrMurke( in: String, ctrlIn: String, out: String,
+      spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
+      mode: String = "up", chanUp: String = "min", chanDown: String = "max",
+      threshUp: String = "0.3", threshDown: String = "0.2",
+      durUp: String = "0.1s", durDown: String = "0.01s",
+      attack: String = "0.01s", release: String = "1.0s",
+      spacing: Option[ String ] = Some( "1.0s" ))
+   extends Doc {
+      def className = "DrMurke"
+
+      def toProperties( p: Properties ) {
+         p.setProperty( "InputFile", in )
+         p.setProperty( "CtrlFile", ctrlIn )
+         p.setProperty( "OutputFile", out )
+         p.setProperty( "OutputType", audioFileType( spec ))
+         p.setProperty( "OutputReso", audioFileRes( spec ))
+         p.setProperty( "GainType", gainType( gain ))
+         p.setProperty( "Gain", dbAmp( gain.value ))
+         p.setProperty( "Mode", (mode match {
+            case "up"   => 0
+            case "down" => 1
+         }).toString )
+         p.setProperty( "ChannelUp", (chanUp match {
+            case "max"  => 0
+            case "min"  => 1
+         }).toString )
+         p.setProperty( "ChannelDown", (chanDown match {
+            case "max"  => 0
+            case "min"  => 1
+         }).toString )
+         p.setProperty( "SpacingType", (if( spacing.isDefined ) 0 else 1).toString )
+         p.setProperty( "ThreshUp", factorAmp( threshUp ))
+         p.setProperty( "ThreshDown", factorAmp( threshDown ))
+         p.setProperty( "DurUp", absMsTime( durUp ))
+         p.setProperty( "DurDown", absMsTime( durDown ))
+         p.setProperty( "Attack", absMsTime( attack ))
+         p.setProperty( "Release", absMsTime( release ))
+         p.setProperty( "Spacing", absMsTime( spacing.getOrElse( "1.0s" )))
       }
    }
 
