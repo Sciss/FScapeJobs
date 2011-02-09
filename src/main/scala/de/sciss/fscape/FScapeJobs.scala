@@ -32,12 +32,14 @@ import de.sciss.synth.io.{AudioFileType, SampleFormat, AudioFileSpec}
 import java.util.Properties
 import actors.{TIMEOUT, DaemonActor}
 import java.io.{IOException, FileOutputStream, File}
-import de.sciss.osc.{OSCTransport, OSCMessage, TCP, OSCClient}
 import java.net.InetSocketAddress
+import collection.mutable.{Queue => MQueue}
+import collection.immutable.{IntMap, IndexedSeq => IIdxSeq}
+import de.sciss.osc.{OSCChannel, OSCTransport, OSCMessage, TCP, OSCClient}
 
 object FScapeJobs {
    val name          = "FScapeJobs"
-   val version       = 0.11
+   val version       = 0.12
    val copyright     = "(C)opyright 2010-2011 Hanns Holger Rutz"
 
    def versionString = (version + 0.001).toString.substring( 0, 4 )
@@ -52,12 +54,16 @@ object FScapeJobs {
     *
     * @param   transport   the OSC transport to use
     * @param   addr        the OSC socket to connect to
+    * @param   numThreads  the maximum number of processes carried out in parallel on the server
     * @return  the new job-server ready to receive job requests. It will initially try
     *    to connect to the OSC socket of FScape and starts processing the job queue once
     *    the connection has succeeded. 
     */
-   def apply( transport: OSCTransport = TCP, addr: InetSocketAddress = new InetSocketAddress( "127.0.0.1", DEFAULT_PORT )) =
-      new FScapeJobs( transport, addr )
+   def apply( transport: OSCTransport = TCP, addr: InetSocketAddress = new InetSocketAddress( "127.0.0.1", DEFAULT_PORT ),
+              numThreads: Int = 1 ) = {
+      require( numThreads > 0 && numThreads < 256 )  // 8 bit client mask currently
+      new FScapeJobs( transport, addr, numThreads )
+   }
 
    def main( args: Array[ String ]) {
       printInfo
@@ -785,29 +791,52 @@ object FScapeJobs {
       }).toString
    }
 
+   private case class Connect( timeOut: Double, fun: Boolean => Unit )
    private case class Process( name: String, doc: Doc, fun: Boolean => Unit )
-   private case class ClientReady( c: OSCClient )
-   private case object CreateClient
+   private case class ConnectSucceeded( c: OSCClient )
+   private case object ConnectFailed
+   private case object Pause
+   private case object Resume
+   private case class DumpOSC( onOff: Boolean )
+   private case class JobDone( id: Int, success: Boolean )
+   private case class DocOpen( path: String )
+   private case class DocOpenSucceeded( path: String, id: AnyRef )
+   private case class DocOpenFailed( path: String )
 
    private def printInfo( msg: String ) {
       println( "" + new java.util.Date() + " : FScape : " + msg )
    }
+
+   private def protect( code: => Unit ) {
+      try {
+         code
+      } catch {
+         case e => e.printStackTrace()
+      }
+   }
+
+   private def warn( what: String ) {
+      printInfo( "Warning - " + what )
+   }
 }
 
-class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress ) {
+class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numThreads: Int ) {
    import FScapeJobs._
 
-   var verbose       = false
+   @volatile var verbose       = false
 
    /**
     * A switch to indicate whether FScape should (`true`) open GUI windows for
     * the jobs processed or not (`false`).
     */
-   var openWindows   = false
+   @volatile var openWindows   = false
 //   var maxJobs       = 1000
 
    /**
-    *  Adds a new job to the server queue.
+    * Adds a new job to the server queue. Note that when there are several
+    * threads, this may complete even before previously scheduled processes.
+    * Hence, to make sure processes are carried out sequentially, use
+    * `processChain` instead.
     *
     * @param name the name of the job, which is arbitrary and is used for logging purposes only
     * @param doc the FScape document to render
@@ -815,11 +844,12 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress ) {
     *    called with `true` upon success, and `false` upon failure.
     */
    def process( name: String, doc: Doc )( fun: Boolean => Unit ) {
-      JobActor ! Process( name, doc, fun )
+      MainActor ! Process( name, doc, fun )
    }
 
    /**
     * Adds a chain ob jobs to the queue. The jobs are still processed sequentially,
+    * even if the number of parallel threads is not exhausted,
     * however the completion function is only called after all jobs of the chain have
     * completed or a failure has occurred.
     */
@@ -833,155 +863,233 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress ) {
       }).getOrElse( fun( true ))
    }
 
-   private object OSCActor extends DaemonActor {
+   def connect( timeOut: Double = 20.0 )( fun: Boolean => Unit ) {
+      MainActor ! Connect( timeOut, fun )
+   }
+
+   def pause() { MainActor ! Pause }
+   def resume() { MainActor ! Resume }
+   def dumpOSC( onOff: Boolean ) { MainActor ! DumpOSC( onOff )}
+
+   private def inform( what: => String ) {
+      if( verbose ) printInfo( what )
+   }
+
+   private class Launcher( timeOut: Double = 20.0 ) extends Thread {
+      start()
+      override def run {
+         if( verbose ) printInfo( "Launcher started" )
+         Thread.sleep( 1000 ) // 5000
+         val c = OSCClient( transport )
+         c.target = addr
+         var count = (timeOut + 0.5).toInt
+         var ok = false
+         while( count > 0 && !ok ) {
+            count -= 1
+            try {
+               c.start
+//               c.action = (msg, addr, when) => MainActor ! msg
+               MainActor ! ConnectSucceeded( c )
+               ok = true
+               if( verbose ) printInfo( "Connect succeeded" )
+            }
+            catch {
+               case e =>
+                  if( verbose ) printInfo( "Connect failed. Sleep" )
+                  Thread.sleep( 1000 )
+//                        reactWithin( 1000 ) { case TIMEOUT => }
+            }
+         }
+         if( !ok ) MainActor ! ConnectFailed
+      }
+   }
+
+   private object MainActor extends DaemonActor {
       start
 
       def act {
          loop {
             react {
-               case CreateClient => {
-                  if( verbose ) printInfo( "CreateClient received" )
-                  Thread.sleep( 5000 )
-                  val c = OSCClient( transport )
-                  c.target = addr
-                  var count = 20
-                  var ok = false
-                  while( count > 0 && !ok ) {
-                     count -= 1
-                     try {
-                        c.start
-                        c.action = (msg, addr, when) => JobActor ! msg
-//                        client = c
-//                        clientReady = true
-                        JobActor ! ClientReady( c )
-                        ok = true
-                        if( verbose ) printInfo( "Connect done" )
-                     }
-                     catch {
-                        case e =>
-                           if( verbose ) printInfo( "Connect failed. Sleep" )
-                           Thread.sleep( 1000 )
-//                        reactWithin( 1000 ) { case TIMEOUT => }
-                     }
+               case Connect( timeOut, fun ) =>
+                  val l = new Launcher( timeOut )
+                  react {
+                     case ConnectSucceeded( c ) =>
+                        protect( fun( true ))
+                        actClientReady( c )
+                     case ConnectFailed => protect( fun( false ))
+                  }
+            }
+         }
+      }
+
+      def actClientReady( client: OSCClient ) {
+         inform( "ClientReady received" )
+
+         val actors  = IIdxSeq.tabulate( numThreads )( id => new JobActor( id, client ))
+         var actorMap= IntMap.empty[ JobOrg ]
+         var pathMap = Map.empty[ String, JobOrg ]
+         var paused  = false
+         val procs   = MQueue[ Process ]()
+
+         def checkProcs {
+            var foundIdle = true
+            while( foundIdle && !paused && procs.nonEmpty ) {
+               val actorO = actors.find( a => !actorMap.contains( a.id ))
+               foundIdle = actorO.isDefined
+               actorO.foreach { actor =>
+                  val proc = procs.dequeue
+                  try {
+                     val path    = File.createTempFile( "tmp", ".fsc" ).getAbsolutePath
+                     val prop    = new Properties()
+                     prop.setProperty( "Class", "de.sciss.fscape.gui." + proc.doc.className + "Dlg" )
+                     proc.doc.toProperties( prop )
+                     val os      = new FileOutputStream( path )
+                     prop.store( os, "FScapeJobs" )
+                     os.close
+                     val org     = JobOrg( actor.id, proc, path )
+                     actorMap   += actor.id -> org
+                     pathMap    += path -> org
+                     actor ! DocOpen( path )
+                     client ! OSCMessage( "/doc", "open", path, if( openWindows ) 1 else 0 )
+                  } catch {
+                     case e =>
+                        warn( "Caught exception:" )
+                        e.printStackTrace()
+                        protect( proc.fun( false ))
                   }
                }
             }
          }
+
+         client.action = (msg, addr, when) => msg match {
+            case OSCMessage( "/query.reply", sid: Int, ignore @ _* ) =>
+               val aid = sid >> 24
+               if( aid >= 0 && aid < actors.size ) actors( aid ) ! msg  // forward to appropriate job actor
+            case OSCMessage( "/done", "/doc", "open", path: String, id: AnyRef, ignore @ _* ) =>
+               pathMap.get( path ).foreach { org =>
+//                  actorMap -= org.actorID
+//                  pathMap  -= path
+                  actors( org.actorID ) ! DocOpenSucceeded( path, id )
+               }
+            case OSCMessage( "/failed", "/doc", "open", path: String, ignore @ _* ) =>
+               pathMap.get( path ).foreach { org =>
+//                  actorMap -= org.actorID
+//                  pathMap  -= path
+                  actors( org.actorID ) ! DocOpenFailed( path )
+               }
+            case _ =>
+         }
+
+         loop {
+            react {
+               case Connect( timeOut, fun ) =>
+                  warn( "Already connected" )
+                  protect( fun( true ))
+               case p: Process =>
+                  procs.enqueue( p )
+                  checkProcs
+               case JobDone( id, success ) =>
+                  actorMap.get( id ) match {
+                     case Some( org ) =>
+                        actorMap -= id
+                        pathMap  -= org.path
+                        protect( org.proc.fun( success ))
+                     case None =>
+                        warn( "Spurious job actor reply : " + id )
+                  }
+                  checkProcs
+               case Pause =>
+                  inform( "paused" )
+                  paused = true
+               case Resume =>
+                  inform( "resumed" )
+                  paused = false
+                  checkProcs
+               case DumpOSC( onOff ) =>
+                  client.dumpOSC( if( onOff ) OSCChannel.DUMP_TEXT else OSCChannel.DUMP_OFF )
+               case m => warn( "? Illegal message: " + m )
+            }
+         }
       }
+
+      case class JobOrg( actorID: Int, proc: Process, path: String )
    }
 
-   private object JobActor extends DaemonActor {
-      var syncID = -1
+   private class JobActor( val id: Int, client: OSCClient ) extends DaemonActor {
+      val prefix     = "[" + id + "] "
+      val clientMask = id << 24
+      var syncID     = -1 // accessed only in actor, incremented per query
 
       start
 
-      def act {
-         var client: OSCClient = null
-         loop {
-//            if( verbose ) printInfo( "restartFScape" )
-//            if( client != null ) {
-//               client.dispose
-//               client = null
-//            }
-//            val pb = new ProcessBuilder( "/bin/sh", BASE_PATH + fs + "RestartFScape.sh" )
-//            pb.start()
-            OSCActor ! CreateClient
-            react {
-               case ClientReady( c ) =>
-                  client = c
-                  if( verbose ) printInfo( "ClientReady received" )
-//                  var numJobs = 0
-                  loop { // While( numJobs < MAX_JOBS ) { }
-                     react {
-                        case Process( name, doc, fun ) /* if( clientReady ) */ => try {
-//                           numJobs += 1
-                           if( verbose ) printInfo( "GOT JOB (" + name + ")" )
+      def act = loop { react {
+         case DocOpen( path ) => reactWithin( 10000L ) {
+            case TIMEOUT =>
+               warn( prefix + "Timeout while trying to open document (" + path + ")" )
+               MainActor ! JobDone( id, false )
+            case DocOpenFailed( `path` ) =>
+               warn( prefix + "Failed to open document (" + path + ")" )
+               MainActor ! JobDone( id, false )
+            case DocOpenSucceeded( `path`, docID ) =>
+               inform( prefix + "document opened (" + name + ")" )
+               actProcess( name, docID ) { success =>
+                  MainActor ! JobDone( id, success )
+               }
+         }
+      }}
 
-                           def timedOut( msg: OSCMessage ) {
-                              printInfo( "TIMEOUT (" + name + " -- " + msg + ")" )
-                              fun( false )
-//                              numJobs = math.max( numJobs, MAX_JOBS - 10 ) // this is an indicator of a problem
+      def actProcess( name: String, docID: AnyRef )( fun: Boolean => Unit ) {
+         try {
+            def timedOut( msg: OSCMessage ) {
+               warn( prefix + "TIMEOUT (" + name + " -- " + msg + ")" )
+               fun( false )
+            }
+
+            def query( path: String, properties: Seq[ String ], timeOut: Long = 4000L )( handler: Seq[ Any ] => Unit ) {
+               syncID += 1
+               val sid = syncID | clientMask
+               val msg = OSCMessage( path, ("query" +: sid +: properties): _* )
+               client ! msg
+               reactWithin( timeOut ) {
+                  case TIMEOUT => timedOut( msg )
+                  case OSCMessage( "/query.reply", `sid`, values @ _* ) => handler( values )
+               }
+            }
+
+            val addr = "/doc/id/" + docID
+            client ! OSCMessage( addr, "start" )
+            query( "/main", "version" :: Nil ) { // tricky sync
+               case _ => {
+                  var progress   = 0f
+                  var running    = 1
+                  var err        = ""
+
+                  loopWhile( running != 0 ) {
+                     reactWithin( 1000L ) {
+                        case TIMEOUT => query( addr, "running" :: "progression" :: "error" :: Nil ) {
+                           case Seq( r: Int, p: Float, e: String ) => {
+                              progress = p
+                              running  = r
+                              err      = e
                            }
-
-                           def query( path: String, properties: Seq[ String ], timeOut: Long = 4000L )( handler: Seq[ Any ] => Unit ) {
-                              syncID += 1
-                              val sid = syncID
-                              val msg = OSCMessage( path, ("query" +: syncID +: properties): _* )
-                              client ! msg
-                              reactWithin( timeOut ) {
-                                 case TIMEOUT => timedOut( msg )
-                                 case OSCMessage( "/query.reply", `sid`, values @ _* ) => handler( values )
-                              }
-                           }
-
-                           val docFile = File.createTempFile( "tmp", ".fsc" /*, new File( TEMP_PATH )*/ ).getAbsolutePath
-                           val prop    = new Properties()
-                           prop.setProperty( "Class", "de.sciss.fscape.gui." + doc.className + "Dlg" )
-                           doc.toProperties( prop )
-                           val os      = new FileOutputStream( docFile )
-                           prop.store( os, "FScapeJobs" )
-                           os.close
-                           client ! OSCMessage( "/doc", "open", docFile, if( openWindows ) 1 else 0 )
-                           query( "/doc", "count" :: Nil ) {
-                              case Seq( num: Int ) => {
-                                 var idx = 0
-                                 var found = false
-                                 loopWhile( !found && (idx < num) ) {
-                                    query( "/doc/index/" + idx, "id" :: "file" :: Nil ) {
-                                       case Seq( id, `docFile` ) => {
-                                          val addr = "/doc/id/" + id
-                                          found = true
-                                          client ! OSCMessage( addr, "start" )
-                                          query( "/main", "version" :: Nil ) { // tricky sync
-                                             case _ => {
-                                                var progress   = 0f
-                                                var running    = 1
-                                                var err        = ""
-
-                                                loopWhile( running != 0 ) {
-                                                   reactWithin( 1000L ) {
-                                                      case TIMEOUT => query( addr, "running" :: "progression" :: "error" :: Nil ) {
-                                                         case Seq( r: Int, p: Float, e: String ) => {
-                                                            progress = p
-               //                                             println( "PROGRESS = " + (p * 100).toInt )
-                                                            running  = r
-                                                            err      = e
-                                                         }
-                                                      }
-                                                   }
-                                                } andThen {
-                                                   client ! OSCMessage( addr, "close" )
-                                                   if( err != "" ) {
-                                                      printInfo( "ERROR (" + name + " -- " + err + ")" + " / " + docFile )
-                                                      fun( false )
-                                                   } else {
-                                                      if( verbose ) printInfo( "Success (" + name + ")" )
-                                                      fun( true )
-                                                   }
-                                                }
-                                             }
-                                          }
-                                       }
-                                       case _ => idx += 1
-                                    }
-                                 } andThen {
-                                    if( !found ) {
-                                       printInfo( "?! File not found (" + name + " / " + docFile + ")" )
-                                       fun( false )
-                                    }
-                                 }
-                              }
-                           }
-                        } catch {
-                           case e: IOException =>
-                              printInfo( "Caught exception : " + e )
-            //                     printInfo( "ACTIVE ? " + client.isActive + " ; CONNECTED ? " + client.isConnected )
-                              fun( false )
                         }
-                        case _ =>
+                     }
+                  } andThen {
+                     client ! OSCMessage( addr, "close" )
+                     if( err != "" ) {
+                        warn( prefix + "ERROR (" + name + " -- " + err + ")" )
+                        fun( false )
+                     } else {
+                        inform( prefix + "Success (" + name + ")" )
+                        fun( true )
                      }
                   }
+               }
             }
+         } catch {
+            case e: IOException =>
+               warn( prefix + "Caught exception : " + e )
+               fun( false )
          }
       }
    }
