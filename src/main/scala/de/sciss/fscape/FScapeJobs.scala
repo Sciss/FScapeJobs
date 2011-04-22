@@ -39,7 +39,7 @@ import de.sciss.osc.{OSCChannel, OSCTransport, OSCMessage, TCP, OSCClient}
 
 object FScapeJobs {
    val name          = "FScapeJobs"
-   val version       = 0.12
+   val version       = 0.13
    val copyright     = "(C)opyright 2010-2011 Hanns Holger Rutz"
 
    def versionString = (version + 0.001).toString.substring( 0, 4 )
