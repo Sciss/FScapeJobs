@@ -39,7 +39,7 @@ import de.sciss.osc.{OSCChannel, OSCTransport, OSCMessage, TCP, OSCClient}
 
 object FScapeJobs {
    val name          = "FScapeJobs"
-   val version       = 0.13
+   val version       = 0.15
    val copyright     = "(C)opyright 2010-2011 Hanns Holger Rutz"
 
    def versionString = (version + 0.001).toString.substring( 0, 4 )
@@ -792,7 +792,7 @@ object FScapeJobs {
    }
 
    private case class Connect( timeOut: Double, fun: Boolean => Unit )
-   private case class Process( name: String, doc: Doc, fun: Boolean => Unit )
+   private case class Process( name: String, doc: Doc, fun: Boolean => Unit, progress: Int => Unit )
    private case class ConnectSucceeded( c: OSCClient )
    private case object ConnectFailed
    private case object Pause
@@ -800,7 +800,7 @@ object FScapeJobs {
    private case class DumpOSC( onOff: Boolean )
    private case class JobDone( id: Int, success: Boolean )
    private case class DocOpen( path: String )
-   private case class DocOpenSucceeded( path: String, id: AnyRef )
+   private case class DocOpenSucceeded( path: String, id: AnyRef, progress: Int => Unit )
    private case class DocOpenFailed( path: String )
 
    private def printInfo( msg: String ) {
@@ -843,8 +843,8 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
     * @param fun the function to execute upon job failure or completion. The function is
     *    called with `true` upon success, and `false` upon failure.
     */
-   def process( name: String, doc: Doc )( fun: Boolean => Unit ) {
-      MainActor ! Process( name, doc, fun )
+   def process( name: String, doc: Doc, progress: Int => Unit = (i: Int) => () )( fun: Boolean => Unit ) {
+      MainActor ! Process( name, doc, fun, progress )
    }
 
    /**
@@ -853,10 +853,10 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
     * however the completion function is only called after all jobs of the chain have
     * completed or a failure has occurred.
     */
-   def processChain( name: String, docs: Seq[ Doc ])( fun: Boolean => Unit ) {
-      docs.headOption.map( doc => process( name, doc ) { success =>
+   def processChain( name: String, docs: Seq[ Doc ], progress: Int => Unit = (i: Int) => () )( fun: Boolean => Unit ) {
+      docs.headOption.map( doc => process( name, doc, progress ) { success =>
          if( success ) {
-            processChain( name, docs.tail )( fun )
+            processChain( name, docs.tail, progress )( fun )
          } else {
             fun( false )
          }
@@ -877,7 +877,7 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
 
    private class Launcher( timeOut: Double = 20.0 ) extends Thread {
       start()
-      override def run {
+      override def run() {
          if( verbose ) printInfo( "Launcher started" )
          Thread.sleep( 1000 ) // 5000
          val c = OSCClient( transport )
@@ -907,7 +907,7 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
    private object MainActor extends DaemonActor {
       start
 
-      def act {
+      def act() {
          loop {
             react {
                case Connect( timeOut, fun ) =>
@@ -931,7 +931,7 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
          var paused  = false
          val procs   = MQueue[ Process ]()
 
-         def checkProcs {
+         def checkProcs() {
             var foundIdle = true
             while( foundIdle && !paused && procs.nonEmpty ) {
                val actorO = actors.find( a => !actorMap.contains( a.id ))
@@ -945,7 +945,7 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
                      proc.doc.toProperties( prop )
                      val os      = new FileOutputStream( path )
                      prop.store( os, "FScapeJobs" )
-                     os.close
+                     os.close()
                      val org     = JobOrg( actor.id, proc, path )
                      actorMap   += actor.id -> org
                      pathMap    += path -> org
@@ -969,7 +969,7 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
                pathMap.get( path ).foreach { org =>
 //                  actorMap -= org.actorID
 //                  pathMap  -= path
-                  actors( org.actorID ) ! DocOpenSucceeded( path, id )
+                  actors( org.actorID ) ! DocOpenSucceeded( path, id, org.proc.progress )
                }
             case OSCMessage( "/failed", "/doc", "open", path: String, ignore @ _* ) =>
                pathMap.get( path ).foreach { org =>
@@ -987,7 +987,7 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
                   protect( fun( true ))
                case p: Process =>
                   procs.enqueue( p )
-                  checkProcs
+                  checkProcs()
                case JobDone( id, success ) =>
                   actorMap.get( id ) match {
                      case Some( org ) =>
@@ -997,14 +997,14 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
                      case None =>
                         warn( "Spurious job actor reply : " + id )
                   }
-                  checkProcs
+                  checkProcs()
                case Pause =>
                   inform( "paused" )
                   paused = true
                case Resume =>
                   inform( "resumed" )
                   paused = false
-                  checkProcs
+                  checkProcs()
                case DumpOSC( onOff ) =>
                   client.dumpOSC( if( onOff ) OSCChannel.DUMP_TEXT else OSCChannel.DUMP_OFF )
                case m => warn( "? Illegal message: " + m )
@@ -1030,15 +1030,15 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
             case DocOpenFailed( `path` ) =>
                warn( prefix + "Failed to open document (" + path + ")" )
                MainActor ! JobDone( id, false )
-            case DocOpenSucceeded( `path`, docID ) =>
+            case DocOpenSucceeded( `path`, docID, progress ) =>
                inform( prefix + "document opened (" + name + ")" )
-               actProcess( name, docID ) { success =>
+               actProcess( name, docID, progress ) { success =>
                   MainActor ! JobDone( id, success )
                }
          }
       }}
 
-      def actProcess( name: String, docID: AnyRef )( fun: Boolean => Unit ) {
+      def actProcess( name: String, docID: AnyRef, progress: Int => Unit )( fun: Boolean => Unit ) {
          try {
             def timedOut( msg: OSCMessage ) {
                warn( prefix + "TIMEOUT (" + name + " -- " + msg + ")" )
@@ -1060,7 +1060,7 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
             client ! OSCMessage( addr, "start" )
             query( "/main", "version" :: Nil ) { // tricky sync
                case _ => {
-                  var progress   = 0f
+                  var progPerc   = 0
                   var running    = 1
                   var err        = ""
 
@@ -1068,9 +1068,13 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
                      reactWithin( 1000L ) {
                         case TIMEOUT => query( addr, "running" :: "progression" :: "error" :: Nil ) {
                            case Seq( r: Int, p: Float, e: String ) => {
-                              progress = p
                               running  = r
                               err      = e
+                              val perc = (p * 100).toInt
+                              if( perc != progPerc ) {
+                                 progPerc = perc
+                                 progress( perc )
+                              }
                            }
                         }
                      }
