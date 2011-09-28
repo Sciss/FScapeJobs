@@ -35,11 +35,11 @@ import java.io.{IOException, FileOutputStream, File}
 import java.net.InetSocketAddress
 import collection.mutable.{Queue => MQueue}
 import collection.immutable.{IntMap, IndexedSeq => IIdxSeq}
-import de.sciss.osc.{OSCChannel, OSCTransport, OSCMessage, TCP, OSCClient}
+import de.sciss.osc.{Dump, UDP, Transport, Message, TCP, Client}
 
 object FScapeJobs {
    val name          = "FScapeJobs"
-   val version       = 0.15
+   val version       = 0.16
    val copyright     = "(C)opyright 2010-2011 Hanns Holger Rutz"
 
    def versionString = (version + 0.001).toString.substring( 0, 4 )
@@ -59,18 +59,18 @@ object FScapeJobs {
     *    to connect to the OSC socket of FScape and starts processing the job queue once
     *    the connection has succeeded. 
     */
-   def apply( transport: OSCTransport = TCP, addr: InetSocketAddress = new InetSocketAddress( "127.0.0.1", DEFAULT_PORT ),
+   def apply( transport: Transport.Net = TCP, addr: InetSocketAddress = new InetSocketAddress( "127.0.0.1", DEFAULT_PORT ),
               numThreads: Int = 1 ) = {
       require( numThreads > 0 && numThreads < 256 )  // 8 bit client mask currently
       new FScapeJobs( transport, addr, numThreads )
    }
 
    def main( args: Array[ String ]) {
-      printInfo
+      printInfo()
       System.exit( 1 )
    }
 
-   def printInfo {
+   def printInfo() {
       println( "\n" + name + " v" + versionString + "\n" + copyright +
          ". All rights reserved.\n\nThis is a library which cannot be executed directly.\n" )
    }
@@ -793,7 +793,7 @@ object FScapeJobs {
 
    private case class Connect( timeOut: Double, fun: Boolean => Unit )
    private case class Process( name: String, doc: Doc, fun: Boolean => Unit, progress: Int => Unit )
-   private case class ConnectSucceeded( c: OSCClient )
+   private case class ConnectSucceeded( c: Client )
    private case object ConnectFailed
    private case object Pause
    private case object Resume
@@ -820,7 +820,7 @@ object FScapeJobs {
    }
 }
 
-class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numThreads: Int ) {
+class FScapeJobs private( transport: Transport.Net, addr: InetSocketAddress, numThreads: Int ) {
    import FScapeJobs._
 
    @volatile var verbose       = false
@@ -876,18 +876,22 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
    }
 
    private class Launcher( timeOut: Double = 20.0 ) extends Thread {
-      start()
+//      start()
       override def run() {
          if( verbose ) printInfo( "Launcher started" )
          Thread.sleep( 1000 ) // 5000
-         val c = OSCClient( transport )
-         c.target = addr
+         val c = transport match {
+            case TCP => TCP.Client( addr )
+            case UDP => UDP.Client( addr )
+         }
+//         c.target = addr
          var count = (timeOut + 0.5).toInt
          var ok = false
          while( count > 0 && !ok ) {
             count -= 1
             try {
-               c.start
+//               c.start
+               c.connect()
 //               c.action = (msg, addr, when) => MainActor ! msg
                MainActor ! ConnectSucceeded( c )
                ok = true
@@ -905,13 +909,14 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
    }
 
    private object MainActor extends DaemonActor {
-      start
+      start()
 
       def act() {
          loop {
             react {
                case Connect( timeOut, fun ) =>
                   val l = new Launcher( timeOut )
+                  l.start()
                   react {
                      case ConnectSucceeded( c ) =>
                         protect( fun( true ))
@@ -922,7 +927,7 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
          }
       }
 
-      def actClientReady( client: OSCClient ) {
+      def actClientReady( client: Client ) {
          inform( "ClientReady received" )
 
          val actors  = IIdxSeq.tabulate( numThreads )( id => new JobActor( id, client ))
@@ -937,7 +942,7 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
                val actorO = actors.find( a => !actorMap.contains( a.id ))
                foundIdle = actorO.isDefined
                actorO.foreach { actor =>
-                  val proc = procs.dequeue
+                  val proc = procs.dequeue()
                   try {
                      val path    = File.createTempFile( "tmp", ".fsc" ).getAbsolutePath
                      val prop    = new Properties()
@@ -950,7 +955,7 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
                      actorMap   += actor.id -> org
                      pathMap    += path -> org
                      actor ! DocOpen( path )
-                     client ! OSCMessage( "/doc", "open", path, if( openWindows ) 1 else 0 )
+                     client ! Message( "/doc", "open", path, if( openWindows ) 1 else 0 )
                   } catch {
                      case e =>
                         warn( "Caught exception:" )
@@ -961,17 +966,17 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
             }
          }
 
-         client.action = (msg, addr, when) => msg match {
-            case OSCMessage( "/query.reply", sid: Int, ignore @ _* ) =>
+         client.action = {
+            case msg @ Message( "/query.reply", sid: Int, ignore @ _* ) =>
                val aid = sid >> 24
                if( aid >= 0 && aid < actors.size ) actors( aid ) ! msg  // forward to appropriate job actor
-            case OSCMessage( "/done", "/doc", "open", path: String, id: AnyRef, ignore @ _* ) =>
+            case Message( "/done", "/doc", "open", path: String, id: AnyRef, ignore @ _* ) =>
                pathMap.get( path ).foreach { org =>
 //                  actorMap -= org.actorID
 //                  pathMap  -= path
                   actors( org.actorID ) ! DocOpenSucceeded( path, id, org.proc.progress )
                }
-            case OSCMessage( "/failed", "/doc", "open", path: String, ignore @ _* ) =>
+            case Message( "/failed", "/doc", "open", path: String, ignore @ _* ) =>
                pathMap.get( path ).foreach { org =>
 //                  actorMap -= org.actorID
 //                  pathMap  -= path
@@ -1006,7 +1011,7 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
                   paused = false
                   checkProcs()
                case DumpOSC( onOff ) =>
-                  client.dumpOSC( if( onOff ) OSCChannel.DUMP_TEXT else OSCChannel.DUMP_OFF )
+                  client.dump( if( onOff ) Dump.Text else Dump.Off )
                case m => warn( "? Illegal message: " + m )
             }
          }
@@ -1015,14 +1020,14 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
       case class JobOrg( actorID: Int, proc: Process, path: String )
    }
 
-   private class JobActor( val id: Int, client: OSCClient ) extends DaemonActor {
+   private class JobActor( val id: Int, client: Client ) extends DaemonActor {
       val prefix     = "[" + id + "] "
       val clientMask = id << 24
       var syncID     = -1 // accessed only in actor, incremented per query
 
-      start
+      start()
 
-      def act = loop { react {
+      def act() { loop { react {
          case DocOpen( path ) => reactWithin( 10000L ) {
             case TIMEOUT =>
                warn( prefix + "Timeout while trying to open document (" + path + ")" )
@@ -1036,11 +1041,11 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
                   MainActor ! JobDone( id, success )
                }
          }
-      }}
+      }}}
 
       def actProcess( name: String, docID: AnyRef, progress: Int => Unit )( fun: Boolean => Unit ) {
          try {
-            def timedOut( msg: OSCMessage ) {
+            def timedOut( msg: Message ) {
                warn( prefix + "TIMEOUT (" + name + " -- " + msg + ")" )
                fun( false )
             }
@@ -1048,16 +1053,16 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
             def query( path: String, properties: Seq[ String ], timeOut: Long = 4000L )( handler: Seq[ Any ] => Unit ) {
                syncID += 1
                val sid = syncID | clientMask
-               val msg = OSCMessage( path, ("query" +: sid +: properties): _* )
+               val msg = Message( path, ("query" +: sid +: properties): _* )
                client ! msg
                reactWithin( timeOut ) {
                   case TIMEOUT => timedOut( msg )
-                  case OSCMessage( "/query.reply", `sid`, values @ _* ) => handler( values )
+                  case Message( "/query.reply", `sid`, values @ _* ) => handler( values )
                }
             }
 
             val addr = "/doc/id/" + docID
-            client ! OSCMessage( addr, "start" )
+            client ! Message( addr, "start" )
             query( "/main", "version" :: Nil ) { // tricky sync
                case _ => {
                   var progPerc   = 0
@@ -1079,7 +1084,7 @@ class FScapeJobs private( transport: OSCTransport, addr: InetSocketAddress, numT
                         }
                      }
                   } andThen {
-                     client ! OSCMessage( addr, "close" )
+                     client ! Message( addr, "close" )
                      if( err != "" ) {
                         warn( prefix + "ERROR (" + name + " -- " + err + ")" )
                         fun( false )
