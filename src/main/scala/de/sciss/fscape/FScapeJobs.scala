@@ -21,9 +21,6 @@
  *
  *  For further information, please contact Hanns Holger Rutz at
  *  contact@sciss.de
- *
- *
- *  Changelog:
  */
 
 package de.sciss.fscape
@@ -39,7 +36,7 @@ import de.sciss.osc.{Dump, UDP, Transport, Message, TCP, Client}
 
 object FScapeJobs {
    val name          = "FScapeJobs"
-   val version       = 0.16
+   val version       = 0.17
    val copyright     = "(C)opyright 2010-2011 Hanns Holger Rutz"
 
    def versionString = (version + 0.001).toString.substring( 0, 4 )
