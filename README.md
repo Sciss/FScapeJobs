@@ -2,13 +2,17 @@
 
 ### statement
 
-(C)opyright 2010--2011 Hanns Holger Rutz. This software is released under the [GNU General Public License](http://github.com/Sciss/FScapeJobs/blob/master/licenses/FScapeJobs-License.txt).
+(C)opyright 2010&ndash;2012 Hanns Holger Rutz. This software is released under the [GNU General Public License](http://github.com/Sciss/FScapeJobs/blob/master/licenses/FScapeJobs-License.txt).
 
 FScapeJobs provides a simple OSC client to talk to the [FScape](http://sourceforge.net/projects/fscape/) audio signal processing toolbox, along with Scala configuration classes for most of its modules.
 
 ### requirements
 
 Builds with xsbt (sbt 0.11) against Scala 2.9.1. Depends on [ScalaOSC](http://github.com/Sciss/ScalaOSC). Standard sbt targets are `clean`, `update`, `compile`, `package`, `doc`, `publish-local`.
+
+To depend on FScapeJobs in your project:
+
+    "de.sciss" %% "fscapejobs" % "0.17"
 
 ### creating an IntelliJ IDEA project
 
