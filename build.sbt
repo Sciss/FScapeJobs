@@ -1,10 +1,16 @@
-name := "fscapejobs"
+name := "FScapeJobs"
 
 version := "0.17"
 
 organization := "de.sciss"
 
-scalaVersion := "2.9.1"
+scalaVersion := "2.9.2"
+
+description := "A library to launch FScape processing jobs via OSC"
+
+homepage := Some( url( "https://github.com/Sciss/FScapeJobs" ))
+
+licenses := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
 
 // crossScalaVersions := Seq("2.9.1", "2.9.0", "2.8.1")
 
@@ -19,19 +25,42 @@ scalacOptions += "-deprecation"
 
 // ---- publishing ----
 
+publishMavenStyle := true
+
 publishTo <<= version { (v: String) =>
-   Some( "Scala Tools Nexus" at "http://nexus.scala-tools.org/content/repositories/".+(
-      if( v.endsWith( "-SNAPSHOT")) "snapshots/" else "releases/"
-   ))
+   Some( if( v.endsWith( "-SNAPSHOT" ))
+      "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
+   else
+      "Sonatype Releases"  at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
+   )
 }
 
-pomExtra :=
-<licenses>
-  <license>
-    <name>GPL v2+</name>
-    <url>http://www.gnu.org/licenses/gpl-2.0.txt</url>
-    <distribution>repo</distribution>
-  </license>
-</licenses>
+publishArtifact in Test := false
 
-credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
+pomIncludeRepository := { _ => false }
+
+pomExtra :=
+<scm>
+  <url>git@github.com:Sciss/FScapeJobs.git</url>
+  <connection>scm:git:git@github.com:Sciss/FScapeJobs.git</connection>
+</scm>
+<developers>
+   <developer>
+      <id>sciss</id>
+      <name>Hanns Holger Rutz</name>
+      <url>http://www.sciss.de</url>
+   </developer>
+</developers>
+
+// ---- ls.implicit.ly ----
+
+seq( lsSettings :_* )
+
+(LsKeys.tags in LsKeys.lsync) := Seq( "fscape", "audio", "dsp" )
+
+(LsKeys.ghUser in LsKeys.lsync) := Some( "Sciss" )
+
+(LsKeys.ghRepo in LsKeys.lsync) := Some( "FScapeJobs" )
+
+// bug in ls -- doesn't find the licenses from global scope
+(licenses in LsKeys.lsync) := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))

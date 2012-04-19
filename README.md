@@ -16,7 +16,7 @@ To depend on FScapeJobs in your project:
 
 ### creating an IntelliJ IDEA project
 
-If you haven't globally installed the sbt-idea plugin yet, create the following contents in `~/.sbt/plugins/build.sbt`:
+To develop the sources, if you haven't globally installed the sbt-idea plugin yet, create the following contents in `~/.sbt/plugins/build.sbt`:
 
     resolvers += "sbt-idea-repo" at "http://mpeltonen.github.com/maven/"
     
