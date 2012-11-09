@@ -8,21 +8,16 @@ FScapeJobs provides a simple OSC client to talk to the [FScape](http://sourcefor
 
 ### requirements
 
-Builds with xsbt (sbt 0.11) against Scala 2.9.1. Depends on [ScalaOSC](http://github.com/Sciss/ScalaOSC). Standard sbt targets are `clean`, `update`, `compile`, `package`, `doc`, `publish-local`.
+Builds with sbt 0.12 against Scala 2.9.2. Depends on [ScalaOSC](http://github.com/Sciss/ScalaOSC). Standard sbt targets are `clean`, `update`, `compile`, `package`, `doc`, `publish-local`.
 
 To depend on FScapeJobs in your project:
 
-    "de.sciss" %% "fscapejobs" % "0.17"
+    "de.sciss" %% "fscapejobs" % "1.0.+"
 
 ### creating an IntelliJ IDEA project
 
 To develop the sources, if you haven't globally installed the sbt-idea plugin yet, create the following contents in `~/.sbt/plugins/build.sbt`:
 
-    resolvers += "sbt-idea-repo" at "http://mpeltonen.github.com/maven/"
-    
-    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "0.11.0")
+    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.0.0")
 
-Then to create the IDEA project, run the following two commands from the xsbt shell:
-
-    > set ideaProjectName := "FScapeJobs"
-    > gen-idea
+Then to create the IDEA project, run `sbt gen-idea`.

@@ -36,10 +36,6 @@ import de.sciss.osc.{Dump, UDP, Transport, Message, TCP, Client}
 
 object FScapeJobs {
    val name          = "FScapeJobs"
-   val version       = 0.17
-   val copyright     = "(C)opyright 2010-2011 Hanns Holger Rutz"
-
-   def versionString = (version + 0.001).toString.substring( 0, 4 )
 
    val DEFAULT_PORT = 0x4653
 
@@ -62,16 +58,6 @@ object FScapeJobs {
       new FScapeJobs( transport, addr, numThreads )
    }
 
-   def main( args: Array[ String ]) {
-      printInfo()
-      System.exit( 1 )
-   }
-
-   def printInfo() {
-      println( "\n" + name + " v" + versionString + "\n" + copyright +
-         ". All rights reserved.\n\nThis is a library which cannot be executed directly.\n" )
-   }
-   
    object Gain {
       val immediate  = Gain( "0.0dB", false )
       val normalized = Gain( "-0.2dB", true )

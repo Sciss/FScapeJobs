@@ -1,12 +1,12 @@
 name := "FScapeJobs"
 
-version := "0.17"
+version := "1.0.0"
 
 organization := "de.sciss"
 
 scalaVersion := "2.9.2"
 
-description := "A library to launch FScape processing jobs via OSC"
+description := "A library to launch digital signal processing jobs for FScape via OSC"
 
 homepage := Some( url( "https://github.com/Sciss/FScapeJobs" ))
 
@@ -15,13 +15,33 @@ licenses := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
 // crossScalaVersions := Seq("2.9.1", "2.9.0", "2.8.1")
 
 libraryDependencies ++= Seq(
-   "de.sciss" %% "scalaosc" % "0.33",
-   "de.sciss" %% "scalaaudiofile" % "0.20"
+   "de.sciss" %% "scalaosc" % "1.0.+",
+   "de.sciss" %% "scalaaudiofile" % "1.0.+"
 )
+
+libraryDependencies <++= scalaVersion { sv =>
+   sv match {
+      case "2.9.2" => Seq.empty
+      case _ => Seq( "org.scala-lang" % "scala-actors" % sv )
+   }
+}
 
 retrieveManaged := true
 
 scalacOptions += "-deprecation"
+
+// ---- build info ----
+
+buildInfoSettings
+
+sourceGenerators in Compile <+= buildInfo
+
+buildInfoKeys := Seq( name, organization, version, scalaVersion, description,
+   BuildInfoKey.map( homepage ) { case (k, opt) => k -> opt.get },
+   BuildInfoKey.map( licenses ) { case (_, Seq( (lic, _) )) => "license" -> lic }
+)
+
+buildInfoPackage := "de.sciss.fscape.jobs"
 
 // ---- publishing ----
 
