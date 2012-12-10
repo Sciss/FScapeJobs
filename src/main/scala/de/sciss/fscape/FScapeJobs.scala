@@ -59,8 +59,8 @@ object FScapeJobs {
    }
 
    object Gain {
-      val immediate  = Gain( "0.0dB", false )
-      val normalized = Gain( "-0.2dB", true )
+      val immediate  = Gain(  "0.0dB", normalized = false )
+      val normalized = Gain( "-0.2dB", normalized = true  )
    }
    object OutputSpec {
       val aiffFloat  = AudioFileSpec( AudioFileType.AIFF, SampleFormat.Float, 1, 44100.0 ) // numCh, sr not used
@@ -74,37 +74,37 @@ object FScapeJobs {
    }
 
    private object Param {
-      val NONE		=	0x0000
-      val AMP		=	0x0001
-      val TIME		=	0x0002
-      val FREQ		=	0x0003
-      val PHASE   =	0x0004
+      val NONE    = 0x0000
+      val AMP     = 0x0001
+      val TIME    = 0x0002
+      val FREQ    = 0x0003
+      val PHASE   = 0x0004
 
-      val ABSUNIT		=	0x0000		// ms, Hz, ...
-      val ABSPERCENT	=	0x0010		// %
-      val RELUNIT		=	0x0020		// +/- ms, +/- Hz, ...
-      val RELPERCENT	=	0x0030		// +/- %
+      val ABSUNIT    = 0x0000    // ms, Hz, ...
+      val ABSPERCENT = 0x0010    // %
+      val RELUNIT    = 0x0020    // +/- ms, +/- Hz, ...
+      val RELPERCENT = 0x0030    // +/- %
 
-      val BEATS		=	0x0100
-      val SEMITONES	=	0x0200
-      val DECIBEL		=	0x0300
+      val BEATS      = 0x0100
+      val SEMITONES  = 0x0200
+      val DECIBEL    = 0x0300
 
-      val FACTOR		   	=	NONE | ABSPERCENT
-      val ABS_AMP		   	=	AMP  | ABSUNIT
-      val FACTOR_AMP	   	=	AMP  | ABSPERCENT
-      val DECIBEL_AMP		=	AMP  | ABSPERCENT	| DECIBEL
-      val OFFSET_AMP		   =	AMP  | RELPERCENT
-      val ABS_MS			   =	TIME | ABSUNIT
-      val ABS_BEATS		   =	TIME | ABSUNIT		| BEATS
-      val FACTOR_TIME		=	TIME | ABSPERCENT
-      val OFFSET_MS	   	=	TIME | RELUNIT
-      val OFFSET_BEATS  	=	TIME | RELUNIT		| BEATS
-      val OFFSET_TIME		=	TIME | RELPERCENT
-      val ABS_HZ			   =	FREQ | ABSUNIT
-      val FACTOR_FREQ		=	FREQ | ABSPERCENT
-      val OFFSET_HZ	   	=	FREQ | RELUNIT
-      val OFFSET_SEMITONES =	FREQ | RELUNIT		| SEMITONES
-      val OFFSET_FREQ	   =	FREQ | RELPERCENT
+      val FACTOR           = NONE | ABSPERCENT
+      val ABS_AMP          = AMP  | ABSUNIT
+      val FACTOR_AMP       = AMP  | ABSPERCENT
+      val DECIBEL_AMP      = AMP  | ABSPERCENT  | DECIBEL
+      val OFFSET_AMP       = AMP  | RELPERCENT
+      val ABS_MS           = TIME | ABSUNIT
+      val ABS_BEATS        = TIME | ABSUNIT     | BEATS
+      val FACTOR_TIME      = TIME | ABSPERCENT
+      val OFFSET_MS        = TIME | RELUNIT
+      val OFFSET_BEATS     = TIME | RELUNIT     | BEATS
+      val OFFSET_TIME      = TIME | RELPERCENT
+      val ABS_HZ           = FREQ | ABSUNIT
+      val FACTOR_FREQ      = FREQ | ABSPERCENT
+      val OFFSET_HZ        = FREQ | RELUNIT
+      val OFFSET_SEMITONES = FREQ | RELUNIT     | SEMITONES
+      val OFFSET_FREQ      = FREQ | RELPERCENT
    }
    private case class Param( value: Double, unit: Int ) {
       override def toString = value.toString + "," + unit.toString
@@ -173,7 +173,7 @@ object FScapeJobs {
          p.setProperty( "Offset1", absMsFactorTime( offset1 ))
          p.setProperty( "Offset2", absMsFactorTime( offset2 ))
          p.setProperty( "Length1", absMsFactorTime( length1 ))
-	      p.setProperty( "Length2", absMsFactorTime( length2 ))
+         p.setProperty( "Length2", absMsFactorTime( length2 ))
       }
    }
 
@@ -391,15 +391,15 @@ object FScapeJobs {
          p.setProperty( "Gain", dbAmp( gain.value ))
          p.setProperty( "LenUpdate", instantaneous.toString )
          p.setProperty( "MinChunkNum", par( minChunks, Param.NONE ))
-	      p.setProperty( "MaxChunkNum", par( maxChunks, Param.NONE ))
+         p.setProperty( "MaxChunkNum", par( maxChunks, Param.NONE ))
          p.setProperty( "MinChunkRep", par( minRepeats, Param.NONE ))
          p.setProperty( "MaxChunkRep", par( maxRepeats, Param.NONE ))
          p.setProperty( "MinChunkLen", absMsTime( minChunkLen ))
-	      p.setProperty( "MaxChunkLen", absMsTime( maxChunkLen ))
-	      p.setProperty( "CrossFade", absMsFactorTime( fades ))
-	      p.setProperty( "EntryPoint", absMsTime( maxEntry ))
+         p.setProperty( "MaxChunkLen", absMsTime( maxChunkLen ))
+         p.setProperty( "CrossFade", absMsFactorTime( fades ))
+         p.setProperty( "EntryPoint", absMsTime( maxEntry ))
          p.setProperty( "FltAmount", factorAmp( filterAmount ))
-	      p.setProperty( "OutLength", absMsFactorTime( length ))
+         p.setProperty( "OutLength", absMsFactorTime( length ))
 //         p.setProperty( "KriechEnv", x )
       }
    }
@@ -640,7 +640,7 @@ object FScapeJobs {
          p.setProperty( "InGain", dbAmp( drive ))
 
          p.setProperty( "Offset", absMsFactorTime( offset ))
-	      p.setProperty( "Length", absMsFactorTime( length ))
+         p.setProperty( "Length", absMsFactorTime( length ))
       }
    }
 
@@ -761,7 +761,11 @@ object FScapeJobs {
 
    private def audioFileType( spec: AudioFileSpec ) : String = {
       (spec.fileType match {
-         case AudioFileType.AIFF => 0x0020
+         case AudioFileType.AIFF    => 0
+         case AudioFileType.NeXT    => 1
+         case AudioFileType.IRCAM   => 2
+         case AudioFileType.Wave    => 3
+//         case AudioFileType.Wave64    => 4
       }).toString
    }
 
@@ -794,7 +798,7 @@ object FScapeJobs {
       try {
          code
       } catch {
-         case e => e.printStackTrace()
+         case e: Throwable => e.printStackTrace()
       }
    }
 
@@ -881,7 +885,7 @@ class FScapeJobs private( transport: Transport.Net, addr: InetSocketAddress, num
                if( verbose ) printInfo( "Connect succeeded" )
             }
             catch {
-               case e =>
+               case e: Throwable =>
                   if( verbose ) printInfo( "Connect failed. Sleep" )
                   Thread.sleep( 1000 )
 //                        reactWithin( 1000 ) { case TIMEOUT => }
@@ -940,7 +944,7 @@ class FScapeJobs private( transport: Transport.Net, addr: InetSocketAddress, num
                      actor ! DocOpen( path )
                      client ! Message( "/doc", "open", path, if( openWindows ) 1 else 0 )
                   } catch {
-                     case e =>
+                     case e: Throwable =>
                         warn( "Caught exception:" )
                         e.printStackTrace()
                         protect( proc.fun( false ))
@@ -1014,10 +1018,10 @@ class FScapeJobs private( transport: Transport.Net, addr: InetSocketAddress, num
          case DocOpen( path ) => reactWithin( 10000L ) {
             case TIMEOUT =>
                warn( prefix + "Timeout while trying to open document (" + path + ")" )
-               MainActor ! JobDone( id, false )
+               MainActor ! JobDone( id, success = false )
             case DocOpenFailed( `path` ) =>
                warn( prefix + "Failed to open document (" + path + ")" )
-               MainActor ! JobDone( id, false )
+               MainActor ! JobDone( id, success = false )
             case DocOpenSucceeded( `path`, docID, progress ) =>
                inform( prefix + "document opened (" + name + ")" )
                actProcess( name, docID, progress ) { success =>

@@ -12,12 +12,12 @@ Builds with sbt 0.12 against Scala 2.9.2. Depends on [ScalaOSC](http://github.co
 
 To depend on FScapeJobs in your project:
 
-    "de.sciss" %% "fscapejobs" % "1.0.+"
+    "de.sciss" %% "fscapejobs" % "1.1.+"
 
 ### creating an IntelliJ IDEA project
 
 To develop the sources, if you haven't globally installed the sbt-idea plugin yet, create the following contents in `~/.sbt/plugins/build.sbt`:
 
-    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.0.0")
+    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.1.0")
 
 Then to create the IDEA project, run `sbt gen-idea`.

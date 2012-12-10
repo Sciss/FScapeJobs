@@ -1,6 +1,6 @@
 name := "FScapeJobs"
 
-version := "1.0.0"
+version := "1.1.0"
 
 organization := "de.sciss"
 
@@ -15,8 +15,8 @@ licenses := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
 // crossScalaVersions := Seq("2.9.1", "2.9.0", "2.8.1")
 
 libraryDependencies ++= Seq(
-   "de.sciss" %% "scalaosc" % "1.0.+",
-   "de.sciss" %% "scalaaudiofile" % "1.0.+"
+   "de.sciss" %% "scalaosc" % "1.1.+",
+   "de.sciss" %% "scalaaudiofile" % "1.1.+"
 )
 
 libraryDependencies <++= scalaVersion { sv =>
