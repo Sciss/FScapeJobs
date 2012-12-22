@@ -8,11 +8,11 @@ FScapeJobs provides a simple OSC client to talk to the [FScape](http://sourcefor
 
 ### requirements
 
-Builds with sbt 0.12 against Scala 2.9.2. Depends on [ScalaOSC](http://github.com/Sciss/ScalaOSC). Standard sbt targets are `clean`, `update`, `compile`, `package`, `doc`, `publish-local`.
+Builds with sbt 0.12 against Scala 2.10 (default) and 2.9.2. Depends on [ScalaOSC](http://github.com/Sciss/ScalaOSC). Standard sbt targets are `clean`, `update`, `compile`, `package`, `doc`, `publish-local`.
 
 To depend on FScapeJobs in your project:
 
-    "de.sciss" %% "fscapejobs" % "1.1.+"
+    "de.sciss" %% "fscapejobs" % "1.2.+"
 
 ### creating an IntelliJ IDEA project
 

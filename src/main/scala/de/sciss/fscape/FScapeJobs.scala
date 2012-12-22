@@ -765,7 +765,7 @@ object FScapeJobs {
          case AudioFileType.NeXT    => 1
          case AudioFileType.IRCAM   => 2
          case AudioFileType.Wave    => 3
-//         case AudioFileType.Wave64    => 4
+         case AudioFileType.Wave64  => 4
       }).toString
    }
 

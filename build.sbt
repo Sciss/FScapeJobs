@@ -1,10 +1,10 @@
 name := "FScapeJobs"
 
-version := "1.1.0"
+version := "1.2.0"
 
 organization := "de.sciss"
 
-scalaVersion := "2.9.2"
+scalaVersion := "2.10.0"
 
 description := "A library to launch digital signal processing jobs for FScape via OSC"
 
@@ -12,11 +12,11 @@ homepage := Some( url( "https://github.com/Sciss/FScapeJobs" ))
 
 licenses := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
 
-// crossScalaVersions := Seq("2.9.1", "2.9.0", "2.8.1")
+crossScalaVersions := Seq("2.10.0", "2.9.2")
 
 libraryDependencies ++= Seq(
    "de.sciss" %% "scalaosc" % "1.1.+",
-   "de.sciss" %% "scalaaudiofile" % "1.1.+"
+   "de.sciss" %% "scalaaudiofile" % "1.2.+"
 )
 
 libraryDependencies <++= scalaVersion { sv =>
