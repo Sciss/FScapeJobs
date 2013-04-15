@@ -1,6 +1,6 @@
 name := "FScapeJobs"
 
-version := "1.3.0-SNAPSHOT"
+version := "1.3.0"
 
 organization := "de.sciss"
 
@@ -13,17 +13,17 @@ homepage <<= name { n => Some(url("https://github.com/Sciss/" + n)) }
 licenses := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
 libraryDependencies ++= Seq(
-  "de.sciss" %% "scalaosc" % "1.1.+",
-  "de.sciss" %% "scalaaudiofile" % "1.4.+",
-  "de.sciss" %% "processor" % "0.1.+"
+  "de.sciss" %% "scalaosc"       % "1.1.+",
+  "de.sciss" %% "scalaaudiofile" % "1.4.+"
+//  "de.sciss" %% "processor"      % "0.1.+"
 )
 
-// libraryDependencies <++= scalaVersion { sv =>
-//   sv match {
-//     case "2.9.2" => Seq.empty
-//     case _ => Seq("org.scala-lang" % "scala-actors" % sv)
-//   }
-// }
+libraryDependencies <++= scalaVersion { sv =>
+  sv match {
+    case "2.9.2" => Seq.empty
+    case _ => Seq("org.scala-lang" % "scala-actors" % sv)
+  }
+}
 
 retrieveManaged := true
 

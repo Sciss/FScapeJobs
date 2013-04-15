@@ -1,7 +1,5 @@
 # FScapeJobs
 
-(version in progress; doesn't compile; go back to tag v1.2.0!)
-
 ## statement
 
 (C)opyright 2010&ndash;2013 Hanns Holger Rutz. This software is released under the [GNU General Public License](http://github.com/Sciss/FScapeJobs/blob/master/LICENSE).
