@@ -944,7 +944,8 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
               prop.setProperty("Class", "de.sciss.fscape.gui." + proc.doc.className + "Dlg")
               proc.doc.write(prop)
               val os = new FileOutputStream(path)
-              prop.store(os, "FScapeJobs")
+              // prop.store(os, "FScapeJobs")
+              prop.store(os, "Created by FScape; do not edit manually!")
               os.close()
               val org = JobOrg(actor.id, proc, path)
               actorMap += actor.id -> org
