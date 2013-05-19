@@ -33,6 +33,7 @@ import collection.mutable.{Queue => MQueue}
 import collection.immutable.{IntMap, IndexedSeq => IIdxSeq}
 import de.sciss.osc.{Dump, UDP, Transport, Message, TCP, Client}
 import scala.actors.{TIMEOUT, DaemonActor}
+import scala.annotation.tailrec
 
 object FScapeJobs {
   final val name          = "FScapeJobs"
@@ -408,24 +409,30 @@ object FScapeJobs {
       }
    }
 
-   case class Laguerre( in: String, out: String,
-      spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
-      warp: Double = -0.1, frameSize: Int = 4, overlap: Int = 1 )
-   extends Doc {
-      def className = "Laguerre"
+  case class Laguerre(in: String, out: String,
+                      spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
+                      warp: Double = -10.0, frameSize: Int = 512, overlap: Int = 1)
+    extends Doc {
+    def className = "Laguerre"
 
-      def write( p: Properties ) {
-         p.setProperty( "InputFile", in )
-         p.setProperty( "OutputFile", out )
-         p.setProperty( "OutputType", audioFileType( spec ))
-         p.setProperty( "OutputReso", audioFileRes( spec ))
-         p.setProperty( "GainType", gainType( gain ))
-         p.setProperty( "Gain", dbAmp( gain.value ))
-         p.setProperty( "Warp", par( warp, Param.FACTOR ))
-         p.setProperty( "FrameSize", (frameSize >> 6).toString )
-         p.setProperty( "Overlap", (overlap - 1).toString )
-      }
-   }
+    def write(p: Properties) {
+      p.setProperty("InputFile" , in)
+      p.setProperty("OutputFile", out)
+      p.setProperty("OutputType", audioFileType(spec))
+      p.setProperty("OutputReso", audioFileRes(spec))
+      p.setProperty("GainType"  , gainType(gain))
+      p.setProperty("Gain"      , dbAmp(gain.value))
+      p.setProperty("Warp"      , par(warp, Param.FACTOR))
+      p.setProperty("FrameSize" , log2i(frameSize >> 6).toString)  // 32 -> 0, 64 -> 1, etc.
+      p.setProperty("Overlap"   , (overlap - 1).toString)
+    }
+
+    private def log2i(i: Int): Int = {
+      @tailrec def loop(rem: Int, cnt: Int): Int =
+        if (rem == 0) cnt else loop(rem >> 1, cnt + 1)
+      loop(i, 0)
+    }
+  }
 
    case class MakeLoop( in: String, out: String,
       spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
