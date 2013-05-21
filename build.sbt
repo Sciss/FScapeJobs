@@ -1,6 +1,6 @@
 name := "FScapeJobs"
 
-version := "1.3.2"
+version := "1.4.0-SNAPSHOT"
 
 organization := "de.sciss"
 
@@ -11,6 +11,10 @@ description := "A library to launch digital signal processing jobs for FScape vi
 homepage <<= name { n => Some(url("https://github.com/Sciss/" + n)) }
 
 licenses := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
+
+initialCommands in console :=
+  """import de.sciss.fscape.FScapeJobs
+    |import FScapeJobs._""".stripMargin
 
 libraryDependencies ++= Seq(
   "de.sciss" %% "scalaosc"       % "1.1.+",

@@ -59,15 +59,24 @@ object FScapeJobs {
     new FScapeJobs(transport, addr, numThreads)
   }
 
+  def save(doc: Doc, file: File) {
+    val prop = new Properties()
+    prop.setProperty("Class", s"de.sciss.fscape.gui.${doc.className}Dlg")
+    doc.write(prop)
+    val os = new FileOutputStream(file)
+    prop.store(os, "Created by FScape; do not edit manually!")
+    os.close()
+  }
+
   object Gain {
-    val immediate = Gain("0.0dB", normalized = false)
-    val normalized = Gain("-0.2dB", normalized = true)
+    val immediate  = Gain( "0.0dB", normalized = false)
+    val normalized = Gain("-0.2dB", normalized = true )
   }
 
   object OutputSpec {
     val aiffFloat = AudioFileSpec(AudioFileType.AIFF, SampleFormat.Float, 1, 44100.0)
     // numCh, sr not used
-    val aiffInt = AudioFileSpec(AudioFileType.AIFF, SampleFormat.Int24, 1, 44100.0)
+    val aiffInt   = AudioFileSpec(AudioFileType.AIFF, SampleFormat.Int24, 1, 44100.0)
   }
 
   case class Gain(value: String = "0.0dB", normalized: Boolean = false)
@@ -117,261 +126,394 @@ object FScapeJobs {
 
   // ------------- actual processes -------------
 
-   case class BinaryOp( in1: String, imagIn1: Option[ String ] = None,
-                        in2: String, imagIn2: Option[ String ] = None, out: String, imagOut: Option[ String ] = None,
-      spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
-      offset1: String = "0.0", length1: String = "1.0",
-      offset2: String = "0.0", length2: String = "1.0",
-      op: String = "+",
-      drive1: String = "0.0dB", rectify1: Boolean = false, invert1: Boolean = false,
-      drive2: String = "0.0dB", rectify2: Boolean = false, invert2: Boolean = false,
-      dryMix: String = "0.0", dryInvert: Boolean = false, wetMix: String = "1.0" )
-   extends Doc {
-      def className = "BinaryOp"
+  case class BinaryOp(in1: String, imagIn1: Option[String] = None,
+                      in2: String, imagIn2: Option[String] = None, out: String, imagOut: Option[String] = None,
+                      spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
+                      offset1: String = "0.0", length1: String = "1.0",
+                      offset2: String = "0.0", length2: String = "1.0",
+                      op: String = "+",
+                      drive1: String = "0.0dB", rectify1: Boolean = false, invert1: Boolean = false,
+                      drive2: String = "0.0dB", rectify2: Boolean = false, invert2: Boolean = false,
+                      dryMix: String = "0.0", dryInvert: Boolean = false, wetMix: String = "1.0")
+    extends Doc {
+    def className = "BinaryOp"
 
-      def write( p: Properties ) {
-         p.setProperty( "ReInFile1", in1 )
-         p.setProperty( "ReInFile2", in2 )
-         imagIn1.foreach( p.setProperty( "ImInFile1", _ ))
-         imagIn2.foreach( p.setProperty( "ImInFile2", _ ))
-         p.setProperty( "HasImInput1", imagIn1.isDefined.toString )
-         p.setProperty( "HasImInput2", imagIn2.isDefined.toString )
-         p.setProperty( "ReOutFile", out )
-         imagOut.foreach( p.setProperty( "ImOutFile", _ ))
-         p.setProperty( "HasImOutput", imagOut.isDefined.toString )
-         p.setProperty( "OutputType", audioFileType( spec ))
-         p.setProperty( "OutputReso", audioFileRes( spec ))
-         p.setProperty( "Operator", (op match {
-            case "+"       => 0
-            case "*"       => 1
-            case "/"       => 2
-            case "%"       => 3
-            case "pow"     => 4
-            case "&"       => 5
-            case "|"       => 6
-            case "^"       => 7
-            case "phase"   => 8
-            case "mag"     => 9
-            case "min"     => 10
-            case "max"     => 11
-            case "absmin"  => 12
-            case "absmax"  => 13
-            case "minsum"  => 14
-            case "maxsum"  => 15
-            case "minproj" => 16
-            case "maxproj" => 17
-            case "gate"    => 18
-            case "atan"    => 19
-         }).toString )
-         p.setProperty( "GainType", gainType( gain ))
-         p.setProperty( "Gain", dbAmp( gain.value ))
-         p.setProperty( "Invert1", invert1.toString )
-         p.setProperty( "Invert2", invert2.toString )
-         p.setProperty( "Rectify1", rectify1.toString )
-         p.setProperty( "Rectify2", rectify2.toString )
-         p.setProperty( "DryMix", factorAmp( dryMix ))
-         p.setProperty( "DryInvert", dryInvert.toString )
-         p.setProperty( "WetMix", factorAmp( wetMix ))
-         p.setProperty( "InGain1", dbAmp( drive1 ))
-         p.setProperty( "InGain2", dbAmp( drive2 ))
+    def write(p: Properties) {
+       p.setProperty("ReInFile1"  , in1)
+       p.setProperty("ReInFile2"  , in2)
+       imagIn1.foreach(p.setProperty("ImInFile1", _))
+       imagIn2.foreach(p.setProperty("ImInFile2", _))
+       p.setProperty("HasImInput1", imagIn1.isDefined.toString)
+       p.setProperty("HasImInput2", imagIn2.isDefined.toString)
+       p.setProperty("ReOutFile"  , out)
+       imagOut.foreach(p.setProperty("ImOutFile", _))
+       p.setProperty("HasImOutput", imagOut.isDefined.toString)
+       p.setProperty("OutputType" , audioFileType(spec))
+       p.setProperty("OutputReso" , audioFileRes(spec))
+       p.setProperty("Operator"   , (op match {
+         case "+"       => 0
+         case "*"       => 1
+         case "/"       => 2
+         case "%"       => 3
+         case "pow"     => 4
+         case "&"       => 5
+         case "|"       => 6
+         case "^"       => 7
+         case "phase"   => 8
+         case "mag"     => 9
+         case "min"     => 10
+         case "max"     => 11
+         case "absmin"  => 12
+         case "absmax"  => 13
+         case "minsum"  => 14
+         case "maxsum"  => 15
+         case "minproj" => 16
+         case "maxproj" => 17
+         case "gate"    => 18
+         case "atan"    => 19
+       }).toString)
+       p.setProperty("GainType"   , gainType(gain))
+       p.setProperty("Gain"       , dbAmp(gain.value))
+       p.setProperty("Invert1"    , invert1.toString)
+       p.setProperty("Invert2"    , invert2.toString)
+       p.setProperty("Rectify1"   , rectify1.toString)
+       p.setProperty("Rectify2"   , rectify2.toString)
+       p.setProperty("DryMix"     , factorAmp(dryMix))
+       p.setProperty("DryInvert"  , dryInvert.toString)
+       p.setProperty("WetMix"     , factorAmp(wetMix))
+       p.setProperty("InGain1"    , dbAmp(drive1))
+       p.setProperty("InGain2"    , dbAmp(drive2))
 
-         p.setProperty( "Offset1", absMsFactorTime( offset1 ))
-         p.setProperty( "Offset2", absMsFactorTime( offset2 ))
-         p.setProperty( "Length1", absMsFactorTime( length1 ))
-         p.setProperty( "Length2", absMsFactorTime( length2 ))
-      }
+       p.setProperty("Offset1"    , absMsFactorTime(offset1))
+       p.setProperty("Offset2"    , absMsFactorTime(offset2))
+       p.setProperty("Length1"    , absMsFactorTime(length1))
+       p.setProperty("Length2"    , absMsFactorTime(length2))
+     }
    }
 
-   case class Bleach( in: String, fltIn: Option[ String ] = None, out: String,
-      spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
-      length: Int = 441, feedback: String = "-60.0dB", clip: String = "18.0dB",
-      inverse: Boolean = false )
-   extends Doc {
-      def className = "Bleach"
+  case class Bleach(in: String, fltIn: Option[String] = None, out: String,
+                    spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
+                    length: Int = 441, feedback: String = "-60.0dB", clip: String = "18.0dB",
+                    inverse: Boolean = false)
+    extends Doc {
+    def className = "Bleach"
 
-      def write( p: Properties ) {
-         p.setProperty( "AnaInFile", in )
-         fltIn.foreach( p.setProperty( "FltInFile", _ ))
-         p.setProperty( "UseAnaAsFilter", fltIn.isEmpty.toString )
-         p.setProperty( "OutputFile", out )
-         p.setProperty( "OutputType", audioFileType( spec ))
-         p.setProperty( "OutputReso", audioFileRes( spec ))
-         p.setProperty( "GainType", gainType( gain ))
-         p.setProperty( "Gain", dbAmp( gain.value ))
-         p.setProperty( "Inverse", inverse.toString )
-         p.setProperty( "FilterLength", par( length, Param.NONE ))
-         p.setProperty( "FilterClip", dbAmp( clip ))
-         p.setProperty( "FeedbackGain", dbAmp( feedback ))
+    def write(p: Properties) {
+      p.setProperty("AnaInFile", in)
+      fltIn.foreach(p.setProperty("FltInFile", _))
+      p.setProperty("UseAnaAsFilter", fltIn.isEmpty.toString)
+      p.setProperty("OutputFile"    , out)
+      p.setProperty("OutputType"    , audioFileType(spec))
+      p.setProperty("OutputReso"    , audioFileRes(spec))
+      p.setProperty("GainType"      , gainType(gain))
+      p.setProperty("Gain"          , dbAmp(gain.value))
+      p.setProperty("Inverse"       , inverse.toString)
+      p.setProperty("FilterLength"  , par(length, Param.NONE))
+      p.setProperty("FilterClip"    , dbAmp(clip))
+      p.setProperty("FeedbackGain"  , dbAmp(feedback))
+    }
+  }
+
+  case class Concat(in1: String, in2: String, out: String, spec: AudioFileSpec = OutputSpec.aiffFloat,
+                    gain: Gain = Gain.immediate, offset: String = "0.0s", length: String = "1.0",
+                    overlap: String = "0.0", fade: String = "0.0", cross: String = "eqp")
+    extends Doc {
+    def className = "Concat"
+
+    def write(p: Properties) {
+      p.setProperty("InputFile1", in1)
+      p.setProperty("InputFile2", in2)
+      p.setProperty("OutputFile", out)
+      p.setProperty("OutputType", audioFileType(spec))
+      p.setProperty("OutputReso", audioFileRes(spec))
+      p.setProperty("GainType"  , gainType(gain))
+      p.setProperty("Gain"      , dbAmp(gain.value))
+      p.setProperty("FadeType"  , (cross match {
+        case "lin" => 0
+        case "eqp" => 1
+      }).toString)
+      p.setProperty("Offset"    , absMsFactorTime(offset))
+      p.setProperty("Length"    , absRelMsFactorOffsetTime(length))
+      p.setProperty("Overlap"   , absRelMsFactorOffsetTime(overlap))
+      p.setProperty("Fade"      , absMsFactorTime(fade))
+    }
+  }
+
+  object Convolution {
+    sealed trait Mode { def id: Int }
+    case object Conv    extends Mode { final val id = 0 }
+    case object Deconv  extends Mode { final val id = 1 }
+    case object InvConv extends Mode { final val id = 2 }
+
+    sealed trait MorphType { def id: Int }
+    case object Cartesian extends MorphType { final val id = 0 }
+    case object Polar     extends MorphType { final val id = 1 }
+
+    sealed trait Length { def id: Int }
+    case object Full    extends Length { final val id = 0 }
+    case object Input   extends Length { final val id = 1 }
+    case object Support extends Length { final val id = 2 }
+  }
+  /**
+   *
+   * @param in          input file
+   * @param impIn       impulse input file
+   * @param out         output file
+   * @param spec        output format spec
+   * @param gain        gain setting
+   * @param mode        whether to perform convoution, deconvolution, or convolution with inverted spectrum
+   * @param morphType   whether to morph based on cartesian or polar coordinates
+   * @param length
+   * @param truncFade
+   * @param numIRs
+   * @param winStep
+   * @param overlap
+   * @param normIRs
+   * @param trunc
+   * @param minPhase
+   */
+  case class Convolution(in: String, impIn: String, out: String,
+                         spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
+                         mode: Convolution.Mode = Convolution.Conv,
+                         morphType: Convolution.MorphType = Convolution.Cartesian,
+                         length: Convolution.Length = Convolution.Full,
+                         truncFade: String = "0.01s", numIRs: Int = 1, winStep: String = "0.02s",
+                         overlap: String = "0s", normIRs: Boolean = false, trunc: Boolean = false,
+                         minPhase: Boolean = false)
+    extends Doc {
+    def className = "Convolution"
+
+    def write(p: Properties) {
+      p.setProperty("InputFile"   , in)
+      p.setProperty("ImpulseFile" , impIn)
+      p.setProperty("OutputFile"  , out)
+      p.setProperty("OutputType"  , audioFileType(spec))
+      p.setProperty("OutputReso"  , audioFileRes(spec))
+      p.setProperty("GainType"    , gainType(gain))
+      p.setProperty("Gain"        , dbAmp(gain.value))
+      p.setProperty("Mode"        , mode.id.toString)
+      p.setProperty("Policy"      , morphType.id.toString)
+      p.setProperty("Length"      , length.id.toString)
+      p.setProperty("FadeLen"     , absMsTime(truncFade))
+      p.setProperty("IRNumber"    , par(numIRs, Param.NONE))
+      p.setProperty("WinStep"     , absMsTime(winStep))
+      p.setProperty("WinOverlap"  , absMsTime(overlap))
+      p.setProperty("NormImp"     , normIRs.toString)
+      p.setProperty("TruncOver"   , trunc.toString)
+      p.setProperty("Morph"       , (numIRs > 1).toString)
+      //         p.setProperty( "IRModEnv", x )
+      p.setProperty("MinPhase"    , minPhase.toString)
+    }
+  }
+
+  /**
+   * @param   mode     either of "up" or "down"
+   * @param   chanUp   either of "min" or "max"
+   * @param   chanDown either of "min" or "max"
+   * @param   spacing  if None, this corresponds to original spacing, otherwise Some( timeSecs )
+   */
+  case class DrMurke(in: String, ctrlIn: String, out: String,
+                     spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
+                     mode: String = "up", chanUp: String = "min", chanDown: String = "max",
+                     threshUp: String = "0.3", threshDown: String = "0.2",
+                     durUp: String = "0.1s", durDown: String = "0.01s",
+                     attack: String = "0.01s", release: String = "1.0s",
+                     spacing: Option[String] = Some("1.0s"))
+    extends Doc {
+    def className = "DrMurke"
+
+    def write(p: Properties) {
+      p.setProperty("InputFile"   , in)
+      p.setProperty("CtrlFile"    , ctrlIn)
+      p.setProperty("OutputFile"  , out)
+      p.setProperty("OutputType"  , audioFileType(spec))
+      p.setProperty("OutputReso"  , audioFileRes(spec))
+      p.setProperty("GainType"    , gainType(gain))
+      p.setProperty("Gain"        , dbAmp(gain.value))
+      p.setProperty("Mode"        , (mode match {
+        case "up"   => 0
+        case "down" => 1
+      }).toString)
+      p.setProperty("ChannelUp"   , (chanUp match {
+        case "max"  => 0
+        case "min"  => 1
+      }).toString)
+      p.setProperty("ChannelDown" , (chanDown match {
+        case "max"  => 0
+        case "min"  => 1
+      }).toString)
+      p.setProperty("SpacingType" , (if (spacing.isDefined) 0 else 1).toString)
+      p.setProperty("ThreshUp"    , factorAmp(threshUp))
+      p.setProperty("ThreshDown"  , factorAmp(threshDown))
+      p.setProperty("DurUp"       , absMsTime(durUp))
+      p.setProperty("DurDown"     , absMsTime(durDown))
+      p.setProperty("Attack"      , absMsTime(attack))
+      p.setProperty("Release"     , absMsTime(release))
+      p.setProperty("Spacing"     , absMsTime(spacing.getOrElse("1.0s")))
+    }
+  }
+
+  object FIRDesigner {
+    sealed trait Length { def id: Int }
+    case object Short    extends Length { final val id = 0 }
+    case object Medium   extends Length { final val id = 1 }
+    case object Long     extends Length { final val id = 2 }
+    case object VeryLong extends Length { final val id = 3 }
+
+    sealed trait Window { def id: Int }
+    case object Hamming   extends Window { final val id = 0 }
+    case object Blackman  extends Window { final val id = 1 }
+    case object Kaiser4   extends Window { final val id = 2 }
+    case object Kaiser5   extends Window { final val id = 3 }
+    case object Kaiser6   extends Window { final val id = 4 }
+    case object Kaiser8   extends Window { final val id = 5 }
+    case object Rectangle extends Window { final val id = 5 }
+    case object Hann      extends Window { final val id = 6 }
+    case object Triangle  extends Window { final val id = 7 }
+
+    private val defaultOvertones = Overtones()
+
+    sealed trait Circuit { def encode: String }
+    final case class Serial  (elements: Circuit*) extends Circuit {
+      def encode = elements.map(_.encode).mkString("1{1", "", "}")
+    }
+    final case class Parallel(elements: Circuit*) extends Circuit {
+      def encode = elements.map(_.encode).mkString("2{2", "", "}")
+    }
+    sealed trait Box extends Circuit {
+      def tpe: Int
+      def freq      : String
+      def gain      : String
+      def delay     : String
+      def rollOff   : String
+      def bw        : String
+      def overtones : Option[Overtones]
+      def subtract  : Boolean
+
+//      return( String.valueOf( filterType ) + ';' + String.valueOf( sign ) + ';' +
+//    				cutOff.toString() + ';' + bandwidth.toString() + ';' + gain.toString() + ';' +
+//    				delay.toString() + ';' + String.valueOf( overtones ) + ';' +
+//    				otLimit.toString() + ';' + otSpacing.toString() + ";" +
+//    				rollOff.toString() );
+
+      def encode: String = {
+        s"3{$tpe;$subtract;${absHzFreq(freq)};${relHzSemiFreq(bw)};${dbAmp(gain)};${absMsTime(delay)};" +
+        s"${overtones.isDefined};${overtones.getOrElse(defaultOvertones).encode};${relHzSemiFreq(rollOff)}}"
       }
-   }
+    }
 
-   case class Concat( in1: String, in2: String, out: String, spec: AudioFileSpec = OutputSpec.aiffFloat,
-                      gain: Gain = Gain.immediate, offset: String = "0.0s", length: String = "1.0",
-                      overlap: String = "0.0", fade: String = "0.0", cross: String = "eqp" )
-   extends Doc {
-      def className = "Concat"
+    final case class AllPass (gain: String = "0.0dB", delay: String = "0.0s",
+                              subtract: Boolean = false) extends Box {
+      def tpe       = 0
+      def freq      = "1000Hz"
+      def rollOff   = "+0Hz"
+      def bw        = "+250Hz"
+      def overtones = None
+    }
+    final case class LowPass (freq: String = "1000Hz",rollOff: String = "+0Hz", gain: String = "0.0dB",
+                              delay: String = "0.0s", subtract: Boolean = false) extends Box {
+      def tpe = 1
+      def bw        = "+250Hz"
+      def overtones = None
+    }
+    final case class HighPass(freq: String = "1000Hz",rollOff: String = "+0Hz", gain: String = "0.0dB",
+                              delay: String = "0.0s", subtract: Boolean = false) extends Box {
+      def tpe = 2
+      def bw        = "+250Hz"
+      def overtones = None
+    }
+    final case class BandPass(freq: String = "1000Hz",rollOff: String = "+0Hz", bw: String = "+250Hz",
+                              overtones: Option[Overtones] = None, gain: String = "0.0dB", delay: String = "0.0s",
+                              subtract: Boolean = false)
+      extends Box {
+      def tpe = 3
+    }
+    final case class BandStop(freq: String = "1000Hz",rollOff: String = "+0Hz", bw: String = "+250Hz",
+                              overtones: Option[Overtones] = None, gain: String = "0.0dB", delay: String = "0.0s",
+                              subtract: Boolean = false)
+      extends Box {
+      def tpe = 4
+    }
 
-      def write( p: Properties ) {
-         p.setProperty( "InputFile1", in1 )
-         p.setProperty( "InputFile2", in2 )
-         p.setProperty( "OutputFile", out )
-         p.setProperty( "OutputType", audioFileType( spec ))
-         p.setProperty( "OutputReso", audioFileRes( spec ))
-         p.setProperty( "GainType", gainType( gain ))
-         p.setProperty( "Gain", dbAmp( gain.value ))
-         p.setProperty( "FadeType", (cross match {
-            case "lin"   => 0
-            case "eqp"   => 1
-         }).toString )
-         p.setProperty( "Offset", absMsFactorTime( offset ))
-         p.setProperty( "Length", absRelMsFactorOffsetTime( length ))
-         p.setProperty( "Overlap", absRelMsFactorOffsetTime( overlap ))
-         p.setProperty( "Fade", absMsFactorTime( fade ))
-      }
-   }
+    final case class Overtones(maxFreq: String = "5000.0Hz", spacing: String = "+1000Hz") {
+      def encode = s"${absRelHzSemiFreq(maxFreq)};${relHzSemiFreq(spacing)}"
+    }
+  }
+  case class FIRDesigner(out: String, spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.normalized,
+                         length: FIRDesigner.Length = FIRDesigner.Long, minPhase: Boolean = false,
+                         window: FIRDesigner.Window = FIRDesigner.Kaiser6, circuit: FIRDesigner.Circuit)
+    extends Doc {
 
-   case class Convolution( in: String, impIn: String, out: String,
-      spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
-      mode: String = "conv", morphType: String = "rect", length: String = "full",
-      truncFade: String = "0.01s", numIRs: Int = 1, winStep: String = "0.02s",
-      overlap: String = "0s", normIRs: Boolean = false, trunc: Boolean = false,
-      minPhase: Boolean = false )
-   extends Doc {
-      def className = "Convolution"
+    def className = "FIRDesigner"
 
-      def write( p: Properties ) {
-         p.setProperty( "InputFile", in )
-         p.setProperty( "ImpulseFile", impIn )
-         p.setProperty( "OutputFile", out )
-         p.setProperty( "OutputType", audioFileType( spec ))
-         p.setProperty( "OutputReso", audioFileRes( spec ))
-         p.setProperty( "GainType", gainType( gain ))
-         p.setProperty( "Gain", dbAmp( gain.value ))
-         p.setProperty( "Mode", (mode match {
-            case "conv"    => 0
-            case "deconv"  => 1
-            case "inv"     => 2
-         }).toString )
-         p.setProperty( "Policy", (morphType match {
-            case "rect"    => 0
-            case "polar"   => 1
-         }).toString )
-         p.setProperty( "Length", (length match {
-            case "full"    => 0
-            case "input"   => 1
-            case "support" => 2
-         }).toString )
-         p.setProperty( "FadeLen", absMsTime( truncFade ))
-         p.setProperty( "IRNumber", par( numIRs, Param.NONE ))
-         p.setProperty( "WinStep", absMsTime( winStep ))
-         p.setProperty( "WinOverlap", absMsTime( overlap ))
-         p.setProperty( "NormImp", normIRs.toString )
-         p.setProperty( "TruncOver", trunc.toString )
-         p.setProperty( "Morph", (numIRs > 1).toString )
-//         p.setProperty( "IRModEnv", x )
-         p.setProperty( "MinPhase", minPhase.toString )
-      }
-   }
+    def write(p: Properties) {
+      p.setProperty("OutputFile"  , out)
+      p.setProperty("GainType"    , gainType(gain))
+      p.setProperty("Gain"        , dbAmp(gain.value))
+      p.setProperty("OutputType"  , audioFileType(spec))
+      p.setProperty("OutputRes"   , audioFileRes (spec))   // Res not Reso!...
+      p.setProperty("OutputRate"  , audioFileRate(spec))
 
-   /**
-    * @param   mode     either of "up" or "down"
-    * @param   chanUp   either of "min" or "max"
-    * @param   chanDown either of "min" or "max"
-    * @param   spacing  if None, this corresponds to original spacing, otherwise Some( timeSecs )
-    */
-   case class DrMurke( in: String, ctrlIn: String, out: String,
-      spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
-      mode: String = "up", chanUp: String = "min", chanDown: String = "max",
-      threshUp: String = "0.3", threshDown: String = "0.2",
-      durUp: String = "0.1s", durDown: String = "0.01s",
-      attack: String = "0.01s", release: String = "1.0s",
-      spacing: Option[ String ] = Some( "1.0s" ))
-   extends Doc {
-      def className = "DrMurke"
+      p.setProperty("MinPhase"    , minPhase.toString)
+      p.setProperty("Quality"     , length.id.toString)
+      p.setProperty("Window"      , window.id.toString)
 
-      def write( p: Properties ) {
-         p.setProperty( "InputFile", in )
-         p.setProperty( "CtrlFile", ctrlIn )
-         p.setProperty( "OutputFile", out )
-         p.setProperty( "OutputType", audioFileType( spec ))
-         p.setProperty( "OutputReso", audioFileRes( spec ))
-         p.setProperty( "GainType", gainType( gain ))
-         p.setProperty( "Gain", dbAmp( gain.value ))
-         p.setProperty( "Mode", (mode match {
-            case "up"   => 0
-            case "down" => 1
-         }).toString )
-         p.setProperty( "ChannelUp", (chanUp match {
-            case "max"  => 0
-            case "min"  => 1
-         }).toString )
-         p.setProperty( "ChannelDown", (chanDown match {
-            case "max"  => 0
-            case "min"  => 1
-         }).toString )
-         p.setProperty( "SpacingType", (if( spacing.isDefined ) 0 else 1).toString )
-         p.setProperty( "ThreshUp", factorAmp( threshUp ))
-         p.setProperty( "ThreshDown", factorAmp( threshDown ))
-         p.setProperty( "DurUp", absMsTime( durUp ))
-         p.setProperty( "DurDown", absMsTime( durDown ))
-         p.setProperty( "Attack", absMsTime( attack ))
-         p.setProperty( "Release", absMsTime( release ))
-         p.setProperty( "Spacing", absMsTime( spacing.getOrElse( "1.0s" )))
-      }
-   }
+      p.setProperty("Circuit"     , "0" + circuit.encode)   // Yes, it's strange
+    }
+  }
 
-   case class Fourier( in: String, imagIn: Option[ String ] = None, out: String, imagOut: Option[ String ] = None,
-      spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
-      inverse: Boolean = false, format: String = "cartesian", trunc: Boolean = false,
-      memory: Int = 16 )
-   extends Doc {
-      def className = "Fourier"
+  case class Fourier(in: String, imagIn: Option[String] = None, out: String, imagOut: Option[String] = None,
+                     spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
+                     inverse: Boolean = false, format: String = "cartesian", trunc: Boolean = false,
+                     memory: Int = 16)
+    extends Doc {
+    def className = "Fourier"
 
-      def write( p: Properties ) {
-         p.setProperty( "ReInFile", in )
-         imagIn.foreach( p.setProperty( "ImInFile", _ ))
-         p.setProperty( "HasImInput", imagIn.isDefined.toString )
-         p.setProperty( "ReOutFile", out )
-         imagOut.foreach( p.setProperty( "ImOutFile", _ ))
-         p.setProperty( "HasImOutput", imagOut.isDefined.toString )
-         p.setProperty( "OutputType", audioFileType( spec ))
-         p.setProperty( "OutputReso", audioFileRes( spec ))
-         p.setProperty( "Dir", (if( inverse ) 1 else 0).toString )
-         p.setProperty( "Format", (format match {
-            case "cartesian"  => 0
-            case "polar"      => 1
-         }).toString )
-         p.setProperty( "Length", (if( trunc ) 1 else 0).toString )
-         p.setProperty( "Memory", par( memory, Param.NONE ))
-         p.setProperty( "GainType", gainType( gain ))
-         p.setProperty( "Gain", dbAmp( gain.value ))
-      }
-   }
+    def write(p: Properties) {
+      p.setProperty("ReInFile"    , in)
+      imagIn.foreach(p.setProperty("ImInFile", _))
+      p.setProperty("HasImInput"  , imagIn.isDefined.toString)
+      p.setProperty("ReOutFile"   , out)
+      imagOut.foreach(p.setProperty("ImOutFile", _))
+      p.setProperty("HasImOutput" , imagOut.isDefined.toString)
+      p.setProperty("OutputType"  , audioFileType(spec))
+      p.setProperty("OutputReso"  , audioFileRes(spec))
+      p.setProperty("Dir"         , (if (inverse) 1 else 0).toString)
+      p.setProperty("Format"      , (format match {
+        case "cartesian"  => 0
+        case "polar"      => 1
+      }).toString)
+      p.setProperty("Length"      , (if (trunc) 1 else 0).toString)
+      p.setProperty("Memory"      , par(memory, Param.NONE))
+      p.setProperty("GainType"    , gainType(gain))
+      p.setProperty("Gain"        , dbAmp(gain.value))
+    }
+  }
 
-   case class Hilbert( in: String, out: String, imagOut: Option[ String ] = None,
-      spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
-      freq: Double = 0.0, antiAlias: Boolean = true, envelope: Boolean = false )
-   extends Doc {
-      def className = "Hilbert"
+  case class Hilbert(in: String, out: String, imagOut: Option[String] = None,
+                     spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
+                     freq: Double = 0.0, antiAlias: Boolean = true, envelope: Boolean = false)
+    extends Doc {
+    def className = "Hilbert"
 
-      def write( p: Properties ) {
-         p.setProperty( "InputFile", in )
-         p.setProperty( "ReOutFile", out )
-         imagOut.foreach( p.setProperty( "ImOutFile", _ ))
-         p.setProperty( "OutputType", audioFileType( spec ))
-         p.setProperty( "OutputReso", audioFileRes( spec ))
-         p.setProperty( "GainType", gainType( gain ))
-         p.setProperty( "Gain", dbAmp( gain.value ))
-         p.setProperty( "Mode", (
-            if( envelope ) 3
-            else if( freq == 0.0 ) 0
-            else if( freq < 0.0 ) 2
-            else 1
-         ).toString )
-         p.setProperty( "Freq", par( math.abs( freq ), Param.ABS_HZ ))
-         p.setProperty( "AntiAlias", antiAlias.toString )
-      }
-   }
+    def write(p: Properties) {
+      p.setProperty("InputFile", in)
+      p.setProperty("ReOutFile", out)
+      imagOut.foreach(p.setProperty("ImOutFile", _))
+      p.setProperty("OutputType", audioFileType(spec))
+      p.setProperty("OutputReso", audioFileRes(spec))
+      p.setProperty("GainType", gainType(gain))
+      p.setProperty("Gain", dbAmp(gain.value))
+      p.setProperty("Mode", (
+        if (envelope) 3
+        else if (freq == 0.0) 0
+        else if (freq < 0.0) 2
+        else 1
+        ).toString)
+      p.setProperty("Freq", par(math.abs(freq), Param.ABS_HZ))
+      p.setProperty("AntiAlias", antiAlias.toString)
+    }
+  }
 
    case class Kriechstrom( in: String, out: String, spec: AudioFileSpec = OutputSpec.aiffFloat,
                            gain: Gain = Gain.immediate, length: String = "1.0", minChunks: Int = 4,
@@ -544,75 +686,75 @@ object FScapeJobs {
 
    // XXX SpectPatch
 
-   case class StepBack( in: String, out: String,
-      spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
-      mode: String = "decon", corrLen: Int = 1024, corrStep: Int = 256, /* corrFine: Int = 32, */
-      minSpacing: String = "0.1s", maxSpacing: String = "5.0s", minXFade: String = "0.001s", maxXFade: String ="1.0s",
-      offset: String = "0s", weight: Double = 0.5, markers: Boolean = false )
-   extends Doc {
-      def className = "StepBack"
+  case class StepBack(in: String, out: String,
+                      spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
+                      mode: String = "decon", corrLen: Int = 1024, corrStep: Int = 256, /* corrFine: Int = 32, */
+                      minSpacing: String = "0.1s", maxSpacing: String = "5.0s", minXFade: String = "0.001s", maxXFade: String = "1.0s",
+                      offset: String = "0s", weight: Double = 0.5, markers: Boolean = false)
+    extends Doc {
+    def className = "StepBack"
 
-      def write( p: Properties ) {
-         p.setProperty( "InputFile", in )
-         p.setProperty( "OutputFile", out )
-         p.setProperty( "OutputType", audioFileType( spec ))
-         p.setProperty( "OutputReso", audioFileRes( spec ))
-         p.setProperty( "GainType", gainType( gain ))
-         p.setProperty( "Gain", dbAmp( gain.value ))
-         p.setProperty( "Mode", (mode match {
-            case "decon"   => 0
-            case "random"  => 1
-            case "recon"   => 2
-            case "forward" => 3
-         }).toString )
-         p.setProperty( "CorrLength", (math.log( 131072 / corrLen ) / math.log( 2 )).toInt.toString )
-         p.setProperty( "CorrStep",  (math.log( 131072 / corrStep ) / math.log( 2 )).toInt.toString )
-         p.setProperty( "MinSpacing", absMsTime( minSpacing ))
-         p.setProperty( "MaxSpacing", absMsTime( maxSpacing ))
-         p.setProperty( "MinXFade", absMsTime( minXFade ))
-         p.setProperty( "MaxXFade", absMsTime( maxXFade ))
-         p.setProperty( "Offset", offsetMsTime( offset ))
-         p.setProperty( "Weight", par( weight * 100, Param.FACTOR_AMP ))
-         p.setProperty( "Markers", markers.toString )
-      }
-   }
+    def write(p: Properties) {
+      p.setProperty("InputFile"   , in)
+      p.setProperty("OutputFile"  , out)
+      p.setProperty("OutputType"  , audioFileType(spec))
+      p.setProperty("OutputReso"  , audioFileRes(spec))
+      p.setProperty("GainType"    , gainType(gain))
+      p.setProperty("Gain"        , dbAmp(gain.value))
+      p.setProperty("Mode"        , (mode match {
+        case "decon"    => 0
+        case "random"   => 1
+        case "recon"    => 2
+        case "forward"  => 3
+      }).toString)
+      p.setProperty("CorrLength"  , (math.log(131072 / corrLen ) / math.log(2)).toInt.toString)
+      p.setProperty("CorrStep"    , (math.log(131072 / corrStep) / math.log(2)).toInt.toString)
+      p.setProperty("MinSpacing"  , absMsTime(minSpacing))
+      p.setProperty("MaxSpacing"  , absMsTime(maxSpacing))
+      p.setProperty("MinXFade"    , absMsTime(minXFade))
+      p.setProperty("MaxXFade"    , absMsTime(maxXFade))
+      p.setProperty("Offset"      , offsetMsTime(offset))
+      p.setProperty("Weight"      , par(weight * 100, Param.FACTOR_AMP))
+      p.setProperty("Markers"     , markers.toString)
+    }
+  }
 
-   case class Voocooder( in: String, mod: String, out: String,
-      spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
-      op: String = "*", fltLength: String = "short",
-      loFreq: String = "400Hz", hiFreq: String = "11025Hz", /* dryMix: Double = 1.0, wetMix: Double = 0.25, */
-      /* rollOff: String = "12semi",*/ bandsPerOct: Int = 12 )
-   extends Doc {
-      def className = "Voocooder"
+  case class Voocooder(in: String, mod: String, out: String,
+                       spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
+                       op: String = "*", fltLength: String = "short",
+                       loFreq: String = "400Hz", hiFreq: String = "11025Hz", /* dryMix: Double = 1.0, wetMix: Double = 0.25, */
+                       /* rollOff: String = "12semi",*/ bandsPerOct: Int = 12)
+    extends Doc {
+    def className = "Voocooder"
 
-      def write( p: Properties ) {
-         p.setProperty( "InputFile", in )
-         p.setProperty( "ModFile", mod )
-         p.setProperty( "OutputFile", out )
-         p.setProperty( "OutputType", audioFileType( spec ))
-         p.setProperty( "OutputReso", audioFileRes( spec ))
-         p.setProperty( "GainType", gainType( gain ))
-         p.setProperty( "Gain", dbAmp( gain.value ))
-         p.setProperty( "Kombi", (op match {
-            case "*"       => 0
-            case "%"       => 1
-            case "min"     => 2
-            case "max"     => 3
-            case "vocoder" => 4
-         }).toString )
-         p.setProperty( "FilterLen", (fltLength match {
-            case "short"      => 0
-            case "medium"     => 1
-            case "long"       => 2
-            case "verylong"   => 3
-         }).toString )
-         p.setProperty( "LoFreq", absHzFreq( loFreq ))
-         p.setProperty( "HiFreq", absHzFreq( hiFreq ))
-         p.setProperty( "BandsPerOct", par( bandsPerOct, Param.NONE ))
-      }
-   }
+    def write(p: Properties) {
+      p.setProperty("InputFile"   , in)
+      p.setProperty("ModFile"     , mod)
+      p.setProperty("OutputFile"  , out)
+      p.setProperty("OutputType"  , audioFileType(spec))
+      p.setProperty("OutputReso"  , audioFileRes(spec))
+      p.setProperty("GainType"    , gainType(gain))
+      p.setProperty("Gain"        , dbAmp(gain.value))
+      p.setProperty("Kombi"       , (op match {
+        case "*"        => 0
+        case "%"        => 1
+        case "min"      => 2
+        case "max"      => 3
+        case "vocoder"  => 4
+      }).toString)
+      p.setProperty("FilterLen", (fltLength match {
+        case "short"    => 0
+        case "medium"   => 1
+        case "long"     => 2
+        case "verylong" => 3
+      }).toString)
+      p.setProperty("LoFreq"      , absHzFreq(loFreq))
+      p.setProperty("HiFreq"      , absHzFreq(hiFreq))
+      p.setProperty("BandsPerOct" , par(bandsPerOct, Param.NONE))
+    }
+  }
 
-   case class UnaryOp( in: String, imagIn: Option[ String ] = None, out: String, imagOut: Option[ String ] = None,
+  case class UnaryOp( in: String, imagIn: Option[ String ] = None, out: String, imagOut: Option[ String ] = None,
       spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
       offset: String = "0.0", length: String = "1.0", op: String = "thru",
       drive: String = "0.0dB", rectify: Boolean = false, invert: Boolean = false, reverse: Boolean = false,
@@ -655,121 +797,126 @@ object FScapeJobs {
       }
    }
 
-   case class Wavelet( in: String, out: String,
-      spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
-      filter: String = "daub4", inverse: Boolean = false, trunc: Boolean = false,
-      scaleGain: String = "3dB" )
-   extends Doc {
-      def className = "Wavelet"
+  case class Wavelet(in: String, out: String,
+                     spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
+                     filter: String = "daub4", inverse: Boolean = false, trunc: Boolean = false,
+                     scaleGain: String = "3dB")
+    extends Doc {
+    def className = "Wavelet"
 
-      def write( p: Properties ) {
-         p.setProperty( "InputFile", in )
-         p.setProperty( "OutputFile", out )
-         p.setProperty( "OutputType", audioFileType( spec ))
-         p.setProperty( "OutputReso", audioFileRes( spec ))
-         p.setProperty( "Dir", (if( inverse ) 1 else 0).toString )
-         p.setProperty( "Filter", (filter match {
-            case "daub4"   => 0
-            case "daub6"   => 1
-            case "daub8"   => 2
-            case "daub10"  => 3
-            case "daub12"  => 4
-            case "daub14"  => 5
-            case "daub16"  => 6
-            case "daub18"  => 7
-            case "daub20"  => 8
-         }).toString )
-         p.setProperty( "Length", (if( trunc ) 1 else 0).toString )
-         p.setProperty( "ScaleGain", dbAmp( scaleGain ))
-         p.setProperty( "GainType", gainType( gain ))
-         p.setProperty( "Gain", dbAmp( gain.value ))
-      }
-   }
+    def write(p: Properties) {
+      p.setProperty("InputFile" , in)
+      p.setProperty("OutputFile", out)
+      p.setProperty("OutputType", audioFileType(spec))
+      p.setProperty("OutputReso", audioFileRes(spec))
+      p.setProperty("Dir"       , (if (inverse) 1 else 0).toString)
+      p.setProperty("Filter"    , (filter match {
+        case "daub4"  => 0
+        case "daub6"  => 1
+        case "daub8"  => 2
+        case "daub10" => 3
+        case "daub12" => 4
+        case "daub14" => 5
+        case "daub16" => 6
+        case "daub18" => 7
+        case "daub20" => 8
+      }).toString)
+      p.setProperty("Length"    , (if (trunc) 1 else 0).toString)
+      p.setProperty("ScaleGain" , dbAmp(scaleGain))
+      p.setProperty("GainType"  , gainType(gain))
+      p.setProperty("Gain"      , dbAmp(gain.value))
+    }
+  }
 
-   // ---- helper ----
+  // ---- helper ----
 
-   private def absMsFactorTime( s: String ) : String = {
-      if( s.endsWith( "s" )) absMsTime( s ) else factorTime( s )
-   }
+  private def absMsFactorTime(s: String): String = {
+    if (s.endsWith("s")) absMsTime(s) else factorTime(s)
+  }
 
-   private def absRelMsFactorOffsetTime( s: String ) : String = {
-      if( s.endsWith( "s" )) absRelMsTime( s ) else factorOffsetTime( s )
-   }
+  private def absRelMsFactorOffsetTime(s: String): String = {
+    if (s.endsWith("s")) absRelMsTime(s) else factorOffsetTime(s)
+  }
 
-   private def par( value: Double, unit: Int ) : String = Param( value, unit ).toString
+  private def par(value: Double, unit: Int): String = Param(value, unit).toString
 
-   private def absRelHzSemiFreq( s: String ) : String = {
-      if( s.endsWith( "semi" )) semiFreq( s )
-      else if( s.endsWith( "Hz" )) {
-         if( s.startsWith( "+" ) || s.startsWith( "-" )) relHzFreq( s ) else absHzFreq( s )
-      } else offsetFreq( s )
-   }
+  private def relHzSemiFreq(s: String): String = {
+    if (s.endsWith("semi")) semiFreq(s)
+    else relHzFreq(s)
+  }
 
-   private def semiFreq( s: String ) : String = {
-      require( s.endsWith( "semi" ))
-      Param( s.substring( 0, s.length - 4 ).toDouble, Param.OFFSET_SEMITONES ).toString
-   }
+  private def absRelHzSemiFreq(s: String): String = {
+    if (s.endsWith("semi")) semiFreq(s)
+    else if (s.endsWith("Hz")) {
+      if (s.startsWith("+") || s.startsWith("-")) relHzFreq(s) else absHzFreq(s)
+    } else offsetFreq(s)
+  }
 
-   private def relHzFreq( s: String ) : String = {
-      require( s.endsWith( "Hz" ))
-      Param( s.substring( 0, s.length - 2 ).toDouble, Param.OFFSET_HZ ).toString
-   }
+  private def semiFreq(s: String): String = {
+    require(s.endsWith("semi"))
+    Param(s.substring(0, s.length - 4).toDouble, Param.OFFSET_SEMITONES).toString
+  }
 
-   private def absHzFreq( s: String ) : String = {
-      require( s.endsWith( "Hz" ))
-      Param( s.substring( 0, s.length - 2 ).toDouble, Param.ABS_HZ ).toString
-   }
+  private def relHzFreq(s: String): String = {
+    require(s.endsWith("Hz"))
+    Param(s.substring(0, s.length - 2).toDouble, Param.OFFSET_HZ).toString
+  }
 
-   private def offsetFreq( s: String ) : String = {
-      val s0 = if( s.startsWith( "+" )) s.substring( 1 ) else s
-      Param( s0.toDouble * 100, Param.OFFSET_FREQ ).toString
-   }
+  private def absHzFreq(s: String): String = {
+    require(s.endsWith("Hz"))
+    Param(s.substring(0, s.length - 2).toDouble, Param.ABS_HZ).toString
+  }
 
-   private def dbAmp( s: String ) : String = {
-      require( s.endsWith( "dB" ))
-      Param( s.substring( 0, s.length - 2 ).toDouble, Param.DECIBEL_AMP ).toString
-   }
+  private def offsetFreq(s: String): String = {
+    val s0 = if (s.startsWith("+")) s.substring(1) else s
+    Param(s0.toDouble * 100, Param.OFFSET_FREQ).toString
+  }
 
-   private def factorDBAmp( s: String ) : String = {
-      if( s.endsWith( "dB" )) dbAmp( s ) else factorAmp( s )
-   }
+  private def dbAmp(s: String): String = {
+    require(s.endsWith("dB"))
+    Param(s.substring(0, s.length - 2).toDouble, Param.DECIBEL_AMP).toString
+  }
 
-   private def factorAmp( s: String ) : String = {
-      Param( s.toDouble * 100, Param.FACTOR_AMP ).toString
-   }
+  private def factorDBAmp(s: String): String = {
+    if (s.endsWith("dB")) dbAmp(s) else factorAmp(s)
+  }
 
-   private def factorOffsetTime( s: String ) : String = {
-      if( s.startsWith( "+" ) || s.startsWith( "-" )) offsetTime( s ) else factorTime( s )
-   }
+  private def factorAmp(s: String): String = {
+    Param(s.toDouble * 100, Param.FACTOR_AMP).toString
+  }
 
-   private def offsetTime( s: String ) : String = {
-      val s0 = if( s.startsWith( "+" )) s.substring( 1 ) else s
-      Param( s0.toDouble * 100, Param.OFFSET_TIME ).toString
-   }
+  private def factorOffsetTime(s: String): String = {
+    if (s.startsWith("+") || s.startsWith("-")) offsetTime(s) else factorTime(s)
+  }
 
-   private def factorTime( s: String ) : String = {
-      Param( s.toDouble * 100, Param.FACTOR_TIME ).toString
-   }
+  private def offsetTime(s: String): String = {
+    val s0 = if (s.startsWith("+")) s.substring(1) else s
+    Param(s0.toDouble * 100, Param.OFFSET_TIME).toString
+  }
 
-   private def absRelMsTime( s: String ) : String = {
-      if( s.startsWith( "+" ) || s.startsWith( "-" )) offsetMsTime( s ) else absMsTime( s )
-   }
+  private def factorTime(s: String): String = {
+    Param(s.toDouble * 100, Param.FACTOR_TIME).toString
+  }
 
-   private def absMsTime( s: String ) : String = {
-      require( s.endsWith( "s" ))
-      Param( s.substring( 0, s.length - 1 ).toDouble * 1000, Param.ABS_MS ).toString
-   }
+  private def absRelMsTime(s: String): String = {
+    if (s.startsWith("+") || s.startsWith("-")) offsetMsTime(s) else absMsTime(s)
+  }
 
-   private def offsetMsTime( s: String ) : String = {
-      require( s.endsWith( "s" ))
-      val i = if( s.startsWith( "+" )) 1 else 0
-      Param( s.substring( i, s.length - 1 ).toDouble * 1000, Param.OFFSET_MS ).toString
-   }
+  private def absMsTime(s: String): String = {
+    require(s.endsWith("s"))
+    Param(s.substring(0, s.length - 1).toDouble * 1000, Param.ABS_MS).toString
+  }
 
-   private def gainType( gain: Gain ) : String = (if( gain.normalized ) 0 else 1).toString
+  private def offsetMsTime(s: String): String = {
+    require(s.endsWith("s"))
+    val i = if (s.startsWith("+")) 1 else 0
+    Param(s.substring(i, s.length - 1).toDouble * 1000, Param.OFFSET_MS).toString
+  }
 
-   private def audioFileType( spec: AudioFileSpec ) : String =
-      (spec.fileType match {
+  private def gainType(gain: Gain): String = (if (gain.normalized) 0 else 1).toString
+
+  private def audioFileType(spec: AudioFileSpec): String =
+    (spec.fileType match {
          case AudioFileType.AIFF    => 0
          case AudioFileType.NeXT    => 1
          case AudioFileType.IRCAM   => 2
@@ -778,27 +925,35 @@ object FScapeJobs {
          case other                 => sys.error(s"Currently unsupported file type $other")
       }).toString
 
-   private def audioFileRes( spec: AudioFileSpec ) : String =
-      (spec.sampleFormat match {
-         case SampleFormat.Int16 => 0
-         case SampleFormat.Int24 => 1
-         case SampleFormat.Float => 2
-         case SampleFormat.Int32 => 3
-      }).toString
+  private def audioFileRes(spec: AudioFileSpec): String =
+    (spec.sampleFormat match {
+      case SampleFormat.Int16 => 0
+      case SampleFormat.Int24 => 1
+      case SampleFormat.Float => 2
+      case SampleFormat.Int32 => 3
+    }).toString
 
-   private case class Connect( timeOut: Double, fun: Boolean => Unit )
-   private case class Process( name: String, doc: Doc, fun: Boolean => Unit, progress: Int => Unit )
-   private case class ConnectSucceeded( c: Client )
-   private case object ConnectFailed
-   private case object Pause
-   private case object Resume
-   private case class DumpOSC( onOff: Boolean )
-   private case class JobDone( id: Int, success: Boolean )
-   private case class DocOpen( path: String )
-   private case class DocOpenSucceeded( path: String, id: AnyRef, progress: Int => Unit )
-   private case class DocOpenFailed( path: String )
+  private def audioFileRate(spec: AudioFileSpec): String =
+    (spec.sampleRate.toInt match {
+      case 96000 => 0
+      case 48000 => 1
+      case 44100 => 2
+      case 32000 => 3
+    }).toString
 
-   private def printInfo( msg: String ) {
+  private case class  Connect(timeOut: Double, fun: Boolean => Unit)
+  private case class  Process(name: String, doc: Doc, fun: Boolean => Unit, progress: Int => Unit)
+  private case class  ConnectSucceeded(c: Client)
+  private case object ConnectFailed
+  private case object Pause
+  private case object Resume
+  private case class  DumpOSC(onOff: Boolean)
+  private case class  JobDone(id: Int, success: Boolean)
+  private case class  DocOpen         (path: String)
+  private case class  DocOpenSucceeded(path: String, id: AnyRef, progress: Int => Unit)
+  private case class  DocOpenFailed   (path: String)
+
+  private def printInfo( msg: String ) {
       println( "" + new java.util.Date() + " : FScape : " + msg )
    }
 
@@ -946,17 +1101,12 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
           actorO.foreach { actor =>
             val proc = procs.dequeue()
             try {
-              val path = File.createTempFile("tmp", ".fsc").getAbsolutePath
-              val prop = new Properties()
-              prop.setProperty("Class", "de.sciss.fscape.gui." + proc.doc.className + "Dlg")
-              proc.doc.write(prop)
-              val os = new FileOutputStream(path)
-              // prop.store(os, "FScapeJobs")
-              prop.store(os, "Created by FScape; do not edit manually!")
-              os.close()
+              val f    = File.createTempFile("tmp", ".fsc")
+              val path = f.getAbsolutePath
+              FScapeJobs.save(proc.doc, f)
               val org = JobOrg(actor.id, proc, path)
               actorMap += actor.id -> org
-              pathMap += path -> org
+              pathMap  += path -> org
               actor ! DocOpen(path)
               client ! Message("/doc", "open", path, if (openWindows) 1 else 0)
             } catch {
