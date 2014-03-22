@@ -1,37 +1,36 @@
-name := "FScapeJobs"
+name               := "FScapeJobs"
 
-version := "1.4.0"
+version            := "1.4.1-SNAPSHOT"
 
-organization := "de.sciss"
+organization       := "de.sciss"
 
-scalaVersion := "2.10.1"
+scalaVersion       := "2.11.0-RC3"
 
-description := "A library to launch digital signal processing jobs for FScape via OSC"
+crossScalaVersions := Seq("2.11.0-RC3", "2.10.4")
 
-homepage <<= name { n => Some(url("https://github.com/Sciss/" + n)) }
+description        := "A library to launch digital signal processing jobs for FScape via OSC"
 
-licenses := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
+homepage           := Some(url("https://github.com/Sciss/" + name.value))
+
+licenses           := Seq("LGPL v3+" -> url("http://www.gnu.org/licenses/lgpl-3.0.txt"))
+
+lazy val oscVersion       = "1.1.+"
+
+lazy val audioFileVersion = "1.4.+"
 
 initialCommands in console :=
   """import de.sciss.fscape.FScapeJobs
     |import FScapeJobs._""".stripMargin
 
 libraryDependencies ++= Seq(
-  "de.sciss" %% "scalaosc"       % "1.1.+",
-  "de.sciss" %% "scalaaudiofile" % "1.4.+"
-//  "de.sciss" %% "processor"      % "0.1.+"
+  "de.sciss"       %% "scalaosc"       % oscVersion,
+  "de.sciss"       %% "scalaaudiofile" % audioFileVersion,
+  "org.scala-lang" %  "scala-actors"   % scalaVersion.value
 )
 
-libraryDependencies <++= scalaVersion { sv =>
-  sv match {
-    case "2.9.2" => Seq.empty
-    case _ => Seq("org.scala-lang" % "scala-actors" % sv)
-  }
-}
+// retrieveManaged := true
 
-retrieveManaged := true
-
-scalacOptions += "-deprecation"
+scalacOptions ++= Seq("-deprecation", "-feature", "-unchecked")
 
 // ---- build info ----
 
@@ -50,19 +49,18 @@ buildInfoPackage := "de.sciss.fscape.jobs"
 
 publishMavenStyle := true
 
-publishTo <<= version { v =>
-  Some(if (v endsWith "-SNAPSHOT")
+publishTo :=
+  Some(if (version.value endsWith "-SNAPSHOT")
     "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
   else
     "Sonatype Releases"  at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
   )
-}
 
 publishArtifact in Test := false
 
 pomIncludeRepository := { _ => false }
 
-pomExtra <<= name { n =>
+pomExtra := { val n = name.value
 <scm>
   <url>git@github.com:Sciss/{n}.git</url>
   <connection>scm:git:git@github.com:Sciss/{n}.git</connection>
@@ -80,9 +78,9 @@ pomExtra <<= name { n =>
 
 seq(lsSettings :_*)
 
-(LsKeys.tags in LsKeys.lsync) := Seq("fscape", "audio", "dsp")
+(LsKeys.tags   in LsKeys.lsync) := Seq("fscape", "audio", "dsp")
 
 (LsKeys.ghUser in LsKeys.lsync) := Some("Sciss")
 
-(LsKeys.ghRepo in LsKeys.lsync) <<= name(Some(_))
+(LsKeys.ghRepo in LsKeys.lsync) := Some(name.value)
 
