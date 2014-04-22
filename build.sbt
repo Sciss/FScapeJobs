@@ -1,22 +1,22 @@
 name               := "FScapeJobs"
 
-version            := "1.4.1-SNAPSHOT"
+version            := "1.4.1"
 
 organization       := "de.sciss"
 
-scalaVersion       := "2.11.0-RC3"
+scalaVersion       := "2.11.0"
 
-crossScalaVersions := Seq("2.11.0-RC3", "2.10.4")
+crossScalaVersions := Seq("2.11.0", "2.10.4")
 
 description        := "A library to launch digital signal processing jobs for FScape via OSC"
 
 homepage           := Some(url("https://github.com/Sciss/" + name.value))
 
-licenses           := Seq("LGPL v3+" -> url("http://www.gnu.org/licenses/lgpl-3.0.txt"))
+licenses           := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt"))
 
-lazy val oscVersion       = "1.1.+"
+lazy val oscVersion       = "1.1.3"
 
-lazy val audioFileVersion = "1.4.+"
+lazy val audioFileVersion = "1.4.3"
 
 initialCommands in console :=
   """import de.sciss.fscape.FScapeJobs
@@ -30,7 +30,7 @@ libraryDependencies ++= Seq(
 
 // retrieveManaged := true
 
-scalacOptions ++= Seq("-deprecation", "-feature", "-unchecked")
+scalacOptions ++= Seq("-deprecation", "-feature", "-unchecked", "-Xfuture")
 
 // ---- build info ----
 

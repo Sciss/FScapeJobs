@@ -28,26 +28,25 @@ object FScapeJobs {
 
   final val DEFAULT_PORT  = 0x4653
 
-  /**
-   * Creates a new FScape job-server. Note that currently, since the server will create
-   * temporary files, FScape must run on the same machine as the client. Since jobs
-   * are processed sequentially, you may still want to run several instances of FScape
-   * (each with their dedicated OSC port) to use all available processors.
-   *
-   * @param   transport   the OSC transport to use
-   * @param   addr        the OSC socket to connect to
-   * @param   numThreads  the maximum number of processes carried out in parallel on the server
-   * @return  the new job-server ready to receive job requests. It will initially try
-   *          to connect to the OSC socket of FScape and starts processing the job queue once
-   *          the connection has succeeded. 
-   */
+  /** Creates a new FScape job-server. Note that currently, since the server will create
+    * temporary files, FScape must run on the same machine as the client. Since jobs
+    * are processed sequentially, you may still want to run several instances of FScape
+    * (each with their dedicated OSC port) to use all available processors.
+    *
+    * @param   transport   the OSC transport to use
+    * @param   addr        the OSC socket to connect to
+    * @param   numThreads  the maximum number of processes carried out in parallel on the server
+    * @return  the new job-server ready to receive job requests. It will initially try
+    *          to connect to the OSC socket of FScape and starts processing the job queue once
+    *          the connection has succeeded.
+    */
   def apply(transport: Transport.Net = TCP, addr: InetSocketAddress = new InetSocketAddress("127.0.0.1", DEFAULT_PORT),
             numThreads: Int = 1) = {
     require(numThreads > 0 && numThreads < 256) // 8 bit client mask currently
     new FScapeJobs(transport, addr, numThreads)
   }
 
-  def save(doc: Doc, file: File) {
+  def save(doc: Doc, file: File): Unit = {
     val prop = new Properties()
     prop.setProperty("Class", s"de.sciss.fscape.gui.${doc.className}Dlg")
     doc.write(prop)
@@ -126,7 +125,7 @@ object FScapeJobs {
     extends Doc {
     def className = "BinaryOp"
 
-    def write(p: Properties) {
+    def write(p: Properties): Unit = {
        p.setProperty("ReInFile1"  , in1)
        p.setProperty("ReInFile2"  , in2)
        imagIn1.foreach(p.setProperty("ImInFile1", _))
@@ -186,7 +185,7 @@ object FScapeJobs {
     extends Doc {
     def className = "Bleach"
 
-    def write(p: Properties) {
+    def write(p: Properties): Unit = {
       p.setProperty("AnaInFile", in)
       fltIn.foreach(p.setProperty("FltInFile", _))
       p.setProperty("UseAnaAsFilter", fltIn.isEmpty.toString)
@@ -208,7 +207,7 @@ object FScapeJobs {
     extends Doc {
     def className = "Concat"
 
-    def write(p: Properties) {
+    def write(p: Properties): Unit = {
       p.setProperty("InputFile1", in1)
       p.setProperty("InputFile2", in2)
       p.setProperty("OutputFile", out)
@@ -271,7 +270,7 @@ object FScapeJobs {
     extends Doc {
     def className = "Convolution"
 
-    def write(p: Properties) {
+    def write(p: Properties): Unit = {
       p.setProperty("InputFile"   , in)
       p.setProperty("ImpulseFile" , impIn)
       p.setProperty("OutputFile"  , out)
@@ -310,7 +309,7 @@ object FScapeJobs {
     extends Doc {
     def className = "DrMurke"
 
-    def write(p: Properties) {
+    def write(p: Properties): Unit = {
       p.setProperty("InputFile"   , in)
       p.setProperty("CtrlFile"    , ctrlIn)
       p.setProperty("OutputFile"  , out)
@@ -434,7 +433,7 @@ object FScapeJobs {
 
     def className = "FIRDesigner"
 
-    def write(p: Properties) {
+    def write(p: Properties): Unit = {
       p.setProperty("OutputFile"  , out)
       p.setProperty("GainType"    , gainType(gain))
       p.setProperty("Gain"        , dbAmp(gain.value))
@@ -457,7 +456,7 @@ object FScapeJobs {
     extends Doc {
     def className = "Fourier"
 
-    def write(p: Properties) {
+    def write(p: Properties): Unit = {
       p.setProperty("ReInFile"    , in)
       imagIn.foreach(p.setProperty("ImInFile", _))
       p.setProperty("HasImInput"  , imagIn.isDefined.toString)
@@ -484,7 +483,7 @@ object FScapeJobs {
     extends Doc {
     def className = "Hilbert"
 
-    def write(p: Properties) {
+    def write(p: Properties): Unit = {
       p.setProperty("InputFile", in)
       p.setProperty("ReOutFile", out)
       imagOut.foreach(p.setProperty("ImOutFile", _))
@@ -512,7 +511,7 @@ object FScapeJobs {
    extends Doc {
       def className = "Kriechstrom"
 
-      def write( p: Properties ) {
+      def write( p: Properties ): Unit = {
          p.setProperty( "InputFile", in )
          p.setProperty( "OutputFile", out )
          p.setProperty( "OutputType", audioFileType( spec ))
@@ -545,7 +544,7 @@ object FScapeJobs {
     extends Doc {
     def className = "Laguerre"
 
-    def write(p: Properties) {
+    def write(p: Properties): Unit = {
       p.setProperty("InputFile" , in)
       p.setProperty("OutputFile", out)
       p.setProperty("OutputType", audioFileType(spec))
@@ -571,7 +570,7 @@ object FScapeJobs {
    extends Doc {
       def className = "MakeLoop"
 
-      def write( p: Properties ) {
+      def write( p: Properties ): Unit = {
          p.setProperty( "InputFile", in )
          p.setProperty( "OutputFile", out )
          p.setProperty( "OutputType", audioFileType( spec ))
@@ -606,7 +605,7 @@ object FScapeJobs {
    extends Doc {
       def className = "Needlehole"
 
-      def write( p: Properties ) {
+      def write( p: Properties ): Unit = {
          p.setProperty( "InputFile", in )
          p.setProperty( "OutputFile", out )
          p.setProperty( "OutputType", audioFileType( spec ))
@@ -632,7 +631,7 @@ object FScapeJobs {
    extends Doc {
       def className = "Resample"
 
-      def write( p: Properties ) {
+      def write( p: Properties ): Unit = {
          p.setProperty( "InputFile", in )
          p.setProperty( "OutputFile", out )
          p.setProperty( "OutputType", audioFileType( spec ))
@@ -656,7 +655,7 @@ object FScapeJobs {
    extends Doc {
       def className = "Rotation"
 
-      def write( p: Properties ) {
+      def write( p: Properties ): Unit = {
          p.setProperty( "InputFile", in )
          p.setProperty( "OutputFile", out )
          p.setProperty( "OutputType", audioFileType( spec ))
@@ -682,7 +681,7 @@ object FScapeJobs {
     extends Doc {
     def className = "StepBack"
 
-    def write(p: Properties) {
+    def write(p: Properties): Unit = {
       p.setProperty("InputFile"   , in)
       p.setProperty("OutputFile"  , out)
       p.setProperty("OutputType"  , audioFileType(spec))
@@ -715,7 +714,7 @@ object FScapeJobs {
     extends Doc {
     def className = "Voocooder"
 
-    def write(p: Properties) {
+    def write(p: Properties): Unit = {
       p.setProperty("InputFile"   , in)
       p.setProperty("ModFile"     , mod)
       p.setProperty("OutputFile"  , out)
@@ -750,7 +749,7 @@ object FScapeJobs {
    extends Doc {
       def className = "UnaryOp"
 
-      def write( p: Properties ) {
+      def write( p: Properties ): Unit = {
          p.setProperty( "ReInFile", in )
          imagIn.foreach( p.setProperty( "ImInFile", _ ))
          p.setProperty( "HasImInput", imagIn.isDefined.toString )
@@ -792,7 +791,7 @@ object FScapeJobs {
     extends Doc {
     def className = "Wavelet"
 
-    def write(p: Properties) {
+    def write(p: Properties): Unit = {
       p.setProperty("InputFile" , in)
       p.setProperty("OutputFile", out)
       p.setProperty("OutputType", audioFileType(spec))
@@ -941,11 +940,11 @@ object FScapeJobs {
   private case class  DocOpenSucceeded(path: String, id: AnyRef, progress: Int => Unit)
   private case class  DocOpenFailed   (path: String)
 
-  private def printInfo( msg: String ) {
+  private def printInfo( msg: String ): Unit = {
       println( "" + new java.util.Date() + " : FScape : " + msg )
    }
 
-   private def protect( code: => Unit ) {
+   private def protect( code: => Unit ): Unit = {
       try {
          code
       } catch {
@@ -953,7 +952,7 @@ object FScapeJobs {
       }
    }
 
-   private def warn( what: String ) {
+   private def warn( what: String ): Unit = {
       printInfo( "Warning - " + what )
    }
 }
@@ -981,7 +980,7 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
    * @param fun the function to execute upon job failure or completion. The function is
    *            called with `true` upon success, and `false` upon failure.
    */
-  def process(name: String, doc: Doc, progress: Int => Unit = (i: Int) => ())(fun: Boolean => Unit) {
+  def process(name: String, doc: Doc, progress: Int => Unit = (i: Int) => ())(fun: Boolean => Unit): Unit = {
     MainActor ! Process(name, doc, fun, progress)
   }
 
@@ -991,7 +990,7 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
    * however the completion function is only called after all jobs of the chain have
    * completed or a failure has occurred.
    */
-  def processChain(name: String, docs: Seq[Doc], progress: Int => Unit = (i: Int) => ())(fun: Boolean => Unit) {
+  def processChain(name: String, docs: Seq[Doc], progress: Int => Unit = (i: Int) => ())(fun: Boolean => Unit): Unit = {
     docs.headOption.map(doc => process(name, doc, progress) {
       success =>
         if (success) {
@@ -1002,29 +1001,29 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
     }).getOrElse(fun(true))
   }
 
-  def connect(timeOut: Double = 20.0)(fun: Boolean => Unit) {
+  def connect(timeOut: Double = 20.0)(fun: Boolean => Unit): Unit = {
     MainActor ! Connect(timeOut, fun)
   }
 
-  def pause() {
+  def pause(): Unit = {
     MainActor ! Pause
   }
 
-  def resume() {
+  def resume(): Unit = {
     MainActor ! Resume
   }
 
-  def dumpOSC(onOff: Boolean) {
+  def dumpOSC(onOff: Boolean): Unit = {
     MainActor ! DumpOSC(onOff)
   }
 
-  private def inform(what: => String) {
+  private def inform(what: => String): Unit = {
     if (verbose) printInfo(what)
   }
 
   private class Launcher(timeOut: Double = 20.0) extends Thread {
     //      start()
-    override def run() {
+    override def run(): Unit = {
       if (verbose) printInfo("Launcher started")
       Thread.sleep(1000) // 5000
       val c = transport match {
@@ -1056,7 +1055,7 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
   private object MainActor extends DaemonActor {
     start()
 
-    def act() {
+    def act(): Unit = {
       loop {
         react {
           case Connect(timeOut, fun) =>
@@ -1072,7 +1071,7 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
       }
     }
 
-    def actClientReady(client: Client) {
+    def actClientReady(client: Client): Unit = {
       inform("ClientReady received")
 
       val actors    = IIdxSeq.tabulate(numThreads)(id => new JobActor(id, client))
@@ -1081,7 +1080,7 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
       var paused    = false
       val procs     = MQueue[Process]()
 
-      def checkProcs() {
+      def checkProcs(): Unit = {
         var foundIdle = true
         while (foundIdle && !paused && procs.nonEmpty) {
           val actorO = actors.find(a => !actorMap.contains(a.id))
@@ -1170,7 +1169,7 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
 
     start()
 
-    def act() {
+    def act(): Unit = {
       loop {
         react {
           case DocOpen(path) => reactWithin(10000L) {
@@ -1191,17 +1190,17 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
       }
     }
 
-    def actProcess(name: String, docID: AnyRef, progress: Int => Unit)(fun: Boolean => Unit) {
+    def actProcess(name: String, docID: AnyRef, progress: Int => Unit)(fun: Boolean => Unit): Unit = {
       try {
-        def timedOut(msg: Message) {
+        def timedOut(msg: Message): Unit = {
           warn(prefix + "TIMEOUT (" + name + " -- " + msg + ")")
           fun(false)
         }
 
-        def query(path: String, properties: Seq[String], timeOut: Long = 4000L)(handler: Seq[Any] => Unit) {
+        def query(path: String, properties: Seq[String], timeOut: Long = 4000L)(handler: Seq[Any] => Unit): Unit = {
           syncID += 1
           val sid = syncID | clientMask
-          val msg = Message(path, ("query" +: sid +: properties): _*)
+          val msg = Message(path, "query" +: sid +: properties: _*)
           client ! msg
           reactWithin(timeOut) {
             case TIMEOUT => timedOut(msg)
@@ -1213,7 +1212,7 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
         client ! Message(addr, "start")
         query("/main", "version" :: Nil) {
           // tricky sync
-          case _ => {
+          case _ =>
             var progPerc  = 0
             var running   = 1
             var err       = ""
@@ -1221,7 +1220,7 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
             loopWhile(running != 0) {
               reactWithin(1000L) {
                 case TIMEOUT => query(addr, "running" :: "progression" :: "error" :: Nil) {
-                  case Seq(r: Int, p: Float, e: String) => {
+                  case Seq(r: Int, p: Float, e: String) =>
                     running = r
                     err = e
                     val perc = (p * 100).toInt
@@ -1229,7 +1228,6 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
                       progPerc = perc
                       progress(perc)
                     }
-                  }
                 }
               }
             } andThen {
@@ -1242,7 +1240,6 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
                 fun(true)
               }
             }
-          }
         }
       } catch {
         case e: IOException =>
