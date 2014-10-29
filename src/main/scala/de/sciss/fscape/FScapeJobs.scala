@@ -181,7 +181,7 @@ object FScapeJobs {
   case class Bleach(in: String, fltIn: Option[String] = None, out: String,
                     spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
                     length: Int = 441, feedback: String = "-60.0dB", clip: String = "18.0dB",
-                    inverse: Boolean = false)
+                    inverse: Boolean = false, twoWays: Boolean = false)
     extends Doc {
     def className = "Bleach"
 
@@ -195,6 +195,7 @@ object FScapeJobs {
       p.setProperty("GainType"      , gainType(gain))
       p.setProperty("Gain"          , dbAmp(gain.value))
       p.setProperty("Inverse"       , inverse.toString)
+      p.setProperty("TwoWays"       , twoWays.toString)
       p.setProperty("FilterLength"  , par(length, Param.NONE))
       p.setProperty("FilterClip"    , dbAmp(clip))
       p.setProperty("FeedbackGain"  , dbAmp(feedback))

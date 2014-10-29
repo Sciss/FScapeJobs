@@ -1,12 +1,12 @@
 name               := "FScapeJobs"
 
-version            := "1.4.1"
+version            := "1.5.0-SNAPSHOT"
 
 organization       := "de.sciss"
 
-scalaVersion       := "2.11.0"
+scalaVersion       := "2.11.4"
 
-crossScalaVersions := Seq("2.11.0", "2.10.4")
+crossScalaVersions := Seq("2.11.4", "2.10.4")
 
 description        := "A library to launch digital signal processing jobs for FScape via OSC"
 
@@ -30,7 +30,7 @@ libraryDependencies ++= Seq(
 
 // retrieveManaged := true
 
-scalacOptions ++= Seq("-deprecation", "-feature", "-unchecked", "-Xfuture")
+scalacOptions ++= Seq("-deprecation", "-feature", "-unchecked", "-encoding", "utf8", "-Xfuture")
 
 // ---- build info ----
 
@@ -50,7 +50,7 @@ buildInfoPackage := "de.sciss.fscape.jobs"
 publishMavenStyle := true
 
 publishTo :=
-  Some(if (version.value endsWith "-SNAPSHOT")
+  Some(if (isSnapshot.value)
     "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
   else
     "Sonatype Releases"  at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
