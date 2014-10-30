@@ -4,9 +4,9 @@ version            := "1.5.0-SNAPSHOT"
 
 organization       := "de.sciss"
 
-scalaVersion       := "2.11.4"
+scalaVersion       := "2.11.2"
 
-crossScalaVersions := Seq("2.11.4", "2.10.4")
+crossScalaVersions := Seq("2.11.2", "2.10.4")
 
 description        := "A library to launch digital signal processing jobs for FScape via OSC"
 
