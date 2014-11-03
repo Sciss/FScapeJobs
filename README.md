@@ -16,4 +16,4 @@ Link to the following artifact:
 
     "de.sciss" %% "fscapejobs" % v
 
-The current version `v` is `"1.4.1+"`.
+The current version `v` is `"1.5.0"`.
