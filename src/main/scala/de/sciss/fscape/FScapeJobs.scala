@@ -13,15 +13,17 @@
 
 package de.sciss.fscape
 
-import de.sciss.synth.io.{AudioFileType, SampleFormat, AudioFileSpec}
-import java.util.Properties
-import java.io.{IOException, FileOutputStream, File}
+import java.io.{File, FileOutputStream, IOException}
 import java.net.InetSocketAddress
-import collection.mutable.{Queue => MQueue}
-import collection.immutable.{IntMap, IndexedSeq => IIdxSeq}
-import de.sciss.osc.{Dump, UDP, Transport, Message, TCP, Client}
-import scala.actors.{TIMEOUT, DaemonActor}
+import java.util.Properties
+
+import de.sciss.osc.{Client, Dump, Message, TCP, Transport, UDP}
+import de.sciss.synth.io.{AudioFileSpec, AudioFileType, SampleFormat}
+
+import scala.actors.{DaemonActor, TIMEOUT}
 import scala.annotation.tailrec
+import scala.collection.immutable.{IndexedSeq => IIdxSeq, IntMap}
+import scala.collection.mutable.{Queue => MQueue}
 
 object FScapeJobs {
   final val name          = "FScapeJobs"
@@ -673,6 +675,31 @@ object FScapeJobs {
    }
 
    // XXX SpectPatch
+
+  case class Slice(in: String, out: String,
+                   spec: AudioFileSpec = OutputSpec.aiffFloat,
+                   separateFiles: Boolean = true,
+                   sliceLength: String = "1.0s", initialSkip: String = "0.0s",
+                   skipLength: String = "1.0s", finalSkip: String = "0.0s",
+                   autoScale: Boolean = false,
+                   autoNum: Int = 2)
+    extends Doc {
+    def className = "Splice"  // yes, it's a typo
+
+    def write(p: Properties): Unit = {
+      p.setProperty("SpliceLen"     , absMsFactorTime(sliceLength))
+      p.setProperty("SkipLen"       , absMsFactorTime(skipLength))
+      p.setProperty("InitialSkip"   , absMsFactorTime(initialSkip))
+      p.setProperty("FinalSkip"     , absMsFactorTime(finalSkip))
+      p.setProperty("AutoScale"     , autoScale.toString)
+      p.setProperty("SeparateFiles" , separateFiles.toString)
+      p.setProperty("AutoNum"       , par(autoNum, Param.NONE))
+      p.setProperty("InputFile"     , in)
+      p.setProperty("OutputFile"    , out)
+      p.setProperty("OutputType"    , audioFileType(spec))
+      p.setProperty("OutputReso"    , audioFileRes(spec))
+    }
+  }
 
   case class StepBack(in: String, out: String,
                       spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,

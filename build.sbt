@@ -1,12 +1,12 @@
 name               := "FScapeJobs"
 
-version            := "1.5.0"
+version            := "1.5.1-SNAPSHOT"
 
 organization       := "de.sciss"
 
-scalaVersion       := "2.11.2"
+scalaVersion       := "2.11.7"
 
-crossScalaVersions := Seq("2.11.2", "2.10.4")
+crossScalaVersions := Seq("2.11.7", "2.10.5")
 
 description        := "A library to launch digital signal processing jobs for FScape via OSC"
 
@@ -14,9 +14,8 @@ homepage           := Some(url("https://github.com/Sciss/" + name.value))
 
 licenses           := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt"))
 
-lazy val oscVersion       = "1.1.3"
-
-lazy val audioFileVersion = "1.4.3"
+lazy val oscVersion       = "1.1.5"
+lazy val audioFileVersion = "1.4.5"
 
 initialCommands in console :=
   """import de.sciss.fscape.FScapeJobs
@@ -34,9 +33,9 @@ scalacOptions ++= Seq("-deprecation", "-feature", "-unchecked", "-encoding", "ut
 
 // ---- build info ----
 
-buildInfoSettings
+enablePlugins(BuildInfoPlugin)
 
-sourceGenerators in Compile <+= buildInfo
+// sourceGenerators in Compile <+= buildInfo
 
 buildInfoKeys := Seq(name, organization, version, scalaVersion, description,
   BuildInfoKey.map(homepage) { case (k, opt) => k -> opt.get },
@@ -76,11 +75,8 @@ pomExtra := { val n = name.value
 
 // ---- ls.implicit.ly ----
 
-seq(lsSettings :_*)
-
-(LsKeys.tags   in LsKeys.lsync) := Seq("fscape", "audio", "dsp")
-
-(LsKeys.ghUser in LsKeys.lsync) := Some("Sciss")
-
-(LsKeys.ghRepo in LsKeys.lsync) := Some(name.value)
-
+// seq(lsSettings :_*)
+// 
+// (LsKeys.tags   in LsKeys.lsync) := Seq("fscape", "audio", "dsp")
+// (LsKeys.ghUser in LsKeys.lsync) := Some("Sciss")
+// (LsKeys.ghRepo in LsKeys.lsync) := Some(name.value)
