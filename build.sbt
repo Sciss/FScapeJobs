@@ -1,21 +1,14 @@
 name               := "FScapeJobs"
-
 version            := "1.5.1-SNAPSHOT"
-
 organization       := "de.sciss"
-
-scalaVersion       := "2.11.7"
-
-crossScalaVersions := Seq("2.11.7", "2.10.5")
-
+scalaVersion       := "2.11.12" // 2.12 doesn't work due to scala-actors missing
+crossScalaVersions := Seq("2.11.12", "2.10.7")
 description        := "A library to launch digital signal processing jobs for FScape via OSC"
-
 homepage           := Some(url("https://github.com/Sciss/" + name.value))
-
 licenses           := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt"))
 
 lazy val oscVersion       = "1.1.5"
-lazy val audioFileVersion = "1.4.5"
+lazy val audioFileVersion = "1.4.6"
 
 initialCommands in console :=
   """import de.sciss.fscape.FScapeJobs
