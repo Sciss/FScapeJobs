@@ -2,7 +2,7 @@
  *  FScapeJobs.scala
  *  (FScapeJobs)
  *
- *  Copyright (c) 2010-2014 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2010-2021 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is published under the GNU Lesser General Public License v3+
  *
@@ -13,17 +13,18 @@
 
 package de.sciss.fscape
 
+import akka.actor.{Actor, ActorRef, ActorSystem, Props, ReceiveTimeout}
+
 import java.io.{File, FileOutputStream, IOException}
 import java.net.InetSocketAddress
 import java.util.Properties
-
 import de.sciss.osc.{Client, Dump, Message, TCP, Transport, UDP}
-import de.sciss.synth.io.{AudioFileSpec, AudioFileType, SampleFormat}
+import de.sciss.audiofile.{AudioFileSpec, AudioFileType, SampleFormat}
 
-import scala.actors.{DaemonActor, TIMEOUT}
 import scala.annotation.tailrec
-import scala.collection.immutable.{IndexedSeq => IIdxSeq, IntMap}
+import scala.collection.immutable.{IntMap, IndexedSeq => IIdxSeq}
 import scala.collection.mutable.{Queue => MQueue}
+import scala.concurrent.duration.{Duration, DurationLong}
 
 object FScapeJobs {
   final val name          = "FScapeJobs"
@@ -42,8 +43,8 @@ object FScapeJobs {
     *          to connect to the OSC socket of FScape and starts processing the job queue once
     *          the connection has succeeded.
     */
-  def apply(transport: Transport.Net = TCP, addr: InetSocketAddress = new InetSocketAddress("127.0.0.1", DEFAULT_PORT),
-            numThreads: Int = 1) = {
+  def apply(transport: Transport = TCP, addr: InetSocketAddress = new InetSocketAddress("127.0.0.1", DEFAULT_PORT),
+            numThreads: Int = 1): FScapeJobs = {
     require(numThreads > 0 && numThreads < 256) // 8 bit client mask currently
     new FScapeJobs(transport, addr, numThreads)
   }
@@ -58,14 +59,14 @@ object FScapeJobs {
   }
 
   object Gain {
-    val immediate  = Gain( "0.0dB", normalized = false)
-    val normalized = Gain("-0.2dB", normalized = true )
+    val immediate : Gain = Gain( "0.0dB", normalized = false)
+    val normalized: Gain = Gain("-0.2dB", normalized = true )
   }
 
   object OutputSpec {
-    val aiffFloat = AudioFileSpec(AudioFileType.AIFF, SampleFormat.Float, 1, 44100.0)
+    val aiffFloat: AudioFileSpec = AudioFileSpec(AudioFileType.AIFF, SampleFormat.Float, 1, 44100.0)
     // numCh, sr not used
-    val aiffInt   = AudioFileSpec(AudioFileType.AIFF, SampleFormat.Int24, 1, 44100.0)
+    val aiffInt  : AudioFileSpec = AudioFileSpec(AudioFileType.AIFF, SampleFormat.Int24, 1, 44100.0)
   }
 
   case class Gain(value: String = "0.0dB", normalized: Boolean = false)
@@ -253,14 +254,6 @@ object FScapeJobs {
    * @param gain        gain setting
    * @param mode        whether to perform convoution, deconvolution, or convolution with inverted spectrum
    * @param morphType   whether to morph based on cartesian or polar coordinates
-   * @param length
-   * @param truncFade
-   * @param numIRs
-   * @param winStep
-   * @param overlap
-   * @param normIRs
-   * @param trunc
-   * @param minPhase
    */
   case class Convolution(in: String, impIn: String, out: String,
                          spec: AudioFileSpec = OutputSpec.aiffFloat, gain: Gain = Gain.immediate,
@@ -365,10 +358,10 @@ object FScapeJobs {
 
     sealed trait Circuit { def encode: String }
     final case class Serial  (elements: Circuit*) extends Circuit {
-      def encode = elements.map(_.encode).mkString("1{1", "", "}")
+      def encode: String = elements.map(_.encode).mkString("1{1", "", "}")
     }
     final case class Parallel(elements: Circuit*) extends Circuit {
-      def encode = elements.map(_.encode).mkString("2{2", "", "}")
+      def encode: String = elements.map(_.encode).mkString("2{2", "", "}")
     }
     sealed trait Box extends Circuit {
       def tpe: Int
@@ -398,19 +391,19 @@ object FScapeJobs {
       def freq      = "1000Hz"
       def rollOff   = "+0Hz"
       def bw        = "+250Hz"
-      def overtones = None
+      def overtones : Option[Overtones] = None
     }
     final case class LowPass (freq: String = "1000Hz",rollOff: String = "+0Hz", gain: String = "0.0dB",
                               delay: String = "0.0s", subtract: Boolean = false) extends Box {
       def tpe = 1
       def bw        = "+250Hz"
-      def overtones = None
+      def overtones : Option[Overtones] = None
     }
     final case class HighPass(freq: String = "1000Hz",rollOff: String = "+0Hz", gain: String = "0.0dB",
                               delay: String = "0.0s", subtract: Boolean = false) extends Box {
       def tpe = 2
       def bw        = "+250Hz"
-      def overtones = None
+      def overtones : Option[Overtones] = None
     }
     final case class BandPass(freq: String = "1000Hz",rollOff: String = "+0Hz", bw: String = "+250Hz",
                               overtones: Option[Overtones] = None, gain: String = "0.0dB", delay: String = "0.0s",
@@ -985,7 +978,7 @@ object FScapeJobs {
    }
 }
 
-class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numThreads: Int) {
+class FScapeJobs private(transport: Transport, addr: InetSocketAddress, numThreads: Int) {
   import FScapeJobs._
 
   @volatile var verbose = false
@@ -1009,7 +1002,7 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
    *            called with `true` upon success, and `false` upon failure.
    */
   def process(name: String, doc: Doc, progress: Int => Unit = (i: Int) => ())(fun: Boolean => Unit): Unit = {
-    MainActor ! Process(name, doc, fun, progress)
+    mainActor ! Process(name, doc, fun, progress)
   }
 
   /**
@@ -1030,19 +1023,19 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
   }
 
   def connect(timeOut: Double = 20.0)(fun: Boolean => Unit): Unit = {
-    MainActor ! Connect(timeOut, fun)
+    mainActor ! Connect(timeOut, fun)
   }
 
   def pause(): Unit = {
-    MainActor ! Pause
+    mainActor ! Pause
   }
 
   def resume(): Unit = {
-    MainActor ! Resume
+    mainActor ! Resume
   }
 
   def dumpOSC(onOff: Boolean): Unit = {
-    MainActor ! DumpOSC(onOff)
+    mainActor ! DumpOSC(onOff)
   }
 
   private def inform(what: => String): Unit = {
@@ -1065,7 +1058,7 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
         try {
           c.connect()
           // c.action = (msg, addr, when) => MainActor ! msg
-          MainActor ! ConnectSucceeded(c)
+          mainActor ! ConnectSucceeded(c)
           ok = true
           if (verbose) printInfo("Connect succeeded")
         }
@@ -1076,146 +1069,162 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
             // reactWithin( 1000 ) { case TIMEOUT => }
         }
       }
-      if (!ok) MainActor ! ConnectFailed
+      if (!ok) mainActor ! ConnectFailed
     }
   }
 
-  private object MainActor extends DaemonActor {
-    start()
+  lazy val actorSystem: ActorSystem = ActorSystem("fscape-jobs")
 
-    def act(): Unit = {
-      loop {
-        react {
-          case Connect(timeOut, fun) =>
-            val l = new Launcher(timeOut)
-            l.start()
-            react {
-              case ConnectSucceeded(c) =>
-                protect(fun(true))
-                actClientReady(c)
-              case ConnectFailed => protect(fun(false))
-            }
+  private val mainActor = actorSystem.actorOf(Props(new MainActor))
+
+  private final class MainActor extends Actor {
+    private var connect: Connect = null
+
+    def receive: Actor.Receive = {
+      case c @ Connect(timeOut, _) =>
+        val l = new Launcher(timeOut)
+        l.start()
+        connect = c
+        context.become(connecting)
+    }
+
+    def connecting: Receive = {
+      case ConnectSucceeded(c) =>
+        protect(connect.fun(true))
+        actClientReady(c)
+      case ConnectFailed =>
+        protect(connect.fun(false))
+    }
+
+    private var paused    = false
+    private val procs     = MQueue[Process]()
+    private var actorMap  = IntMap.empty[JobOrg]
+    private var pathMap   = Map.empty[String, JobOrg]
+    private var actors    = IIdxSeq.empty[(Int, ActorRef)]
+    private var client: Client = null
+
+    private def checkProcs(): Unit = {
+      var foundIdle = true
+      while (foundIdle && !paused && procs.nonEmpty) {
+        val actorO = actors.find(a => !actorMap.contains(a._1))
+        foundIdle = actorO.isDefined
+        actorO.foreach { case (actorId, actor) =>
+          val proc = procs.dequeue()
+          try {
+            val f    = File.createTempFile("tmp", ".fsc")
+            val path = f.getAbsolutePath
+            FScapeJobs.save(proc.doc, f)
+            val org = JobOrg(actorId, proc, path)
+            actorMap += actorId -> org
+            pathMap  += path -> org
+            actor ! DocOpen(path)
+            client ! Message("/doc", "open", path, if (openWindows) 1 else 0)
+          } catch {
+            case e: Throwable =>
+              warn("Caught exception:")
+              e.printStackTrace()
+              protect(proc.fun(false))
+          }
         }
       }
     }
 
-    def actClientReady(client: Client): Unit = {
+    def actClientReady(_client: Client): Unit = {
       inform("ClientReady received")
+      client = _client
 
-      val actors    = IIdxSeq.tabulate(numThreads)(id => new JobActor(id, client))
-      var actorMap  = IntMap.empty[JobOrg]
-      var pathMap   = Map.empty[String, JobOrg]
-      var paused    = false
-      val procs     = MQueue[Process]()
-
-      def checkProcs(): Unit = {
-        var foundIdle = true
-        while (foundIdle && !paused && procs.nonEmpty) {
-          val actorO = actors.find(a => !actorMap.contains(a.id))
-          foundIdle = actorO.isDefined
-          actorO.foreach { actor =>
-            val proc = procs.dequeue()
-            try {
-              val f    = File.createTempFile("tmp", ".fsc")
-              val path = f.getAbsolutePath
-              FScapeJobs.save(proc.doc, f)
-              val org = JobOrg(actor.id, proc, path)
-              actorMap += actor.id -> org
-              pathMap  += path -> org
-              actor ! DocOpen(path)
-              client ! Message("/doc", "open", path, if (openWindows) 1 else 0)
-            } catch {
-              case e: Throwable =>
-                warn("Caught exception:")
-                e.printStackTrace()
-                protect(proc.fun(false))
-            }
-          }
-        }
+      actors = IIdxSeq.tabulate(numThreads) { id =>
+        (id, actorSystem.actorOf(Props(new JobActor(id, client))))
       }
 
       client.action = {
         case msg @ Message("/query.reply", sid: Int, ignore@_*) =>
           val aid = sid >> 24
-          if (aid >= 0 && aid < actors.size) actors(aid) ! msg // forward to appropriate job actor
+          if (aid >= 0 && aid < actors.size) actors(aid)._2 ! msg // forward to appropriate job actor
         case Message("/done", "/doc", "open", path: String, id: AnyRef, ignore@_*) =>
           pathMap.get(path).foreach {
             org =>
             //                  actorMap -= org.actorID
             //                  pathMap  -= path
-              actors(org.actorID) ! DocOpenSucceeded(path, id, org.proc.progress)
+              actors(org.actorID)._2 ! DocOpenSucceeded(path, id, org.proc.progress)
           }
         case Message("/failed", "/doc", "open", path: String, ignore@_*) =>
           pathMap.get(path).foreach {
             org =>
             //                  actorMap -= org.actorID
             //                  pathMap  -= path
-              actors(org.actorID) ! DocOpenFailed(path)
+              actors(org.actorID)._2 ! DocOpenFailed(path)
           }
         case _ =>
       }
 
-      loop {
-        react {
-          case Connect(timeOut, fun) =>
-            warn("Already connected")
-            protect(fun(true))
-          case p: Process =>
-            procs.enqueue(p)
-            checkProcs()
-          case JobDone(id, success) =>
-            actorMap.get(id) match {
-              case Some(org) =>
-                actorMap -= id
-                pathMap -= org.path
-                protect(org.proc.fun(success))
-              case None =>
-                warn("Spurious job actor reply : " + id)
-            }
-            checkProcs()
-          case Pause =>
-            inform("paused")
-            paused = true
-          case Resume =>
-            inform("resumed")
-            paused = false
-            checkProcs()
-          case DumpOSC(onOff) =>
-            client.dump(if (onOff) Dump.Text else Dump.Off)
-          case m => warn("? Illegal message: " + m)
+      context.become(clientReady)
+    }
+
+    def clientReady: Receive = {
+      case Connect(timeOut, fun) =>
+        warn("Already connected")
+        protect(fun(true))
+      case p: Process =>
+        procs.enqueue(p)
+        checkProcs()
+      case JobDone(id, success) =>
+        actorMap.get(id) match {
+          case Some(org) =>
+            actorMap -= id
+            pathMap -= org.path
+            protect(org.proc.fun(success))
+          case None =>
+            warn("Spurious job actor reply : " + id)
         }
-      }
+        checkProcs()
+      case Pause =>
+        inform("paused")
+        paused = true
+      case Resume =>
+        inform("resumed")
+        paused = false
+        checkProcs()
+      case DumpOSC(onOff) =>
+        client.dump(if (onOff) Dump.Text else Dump.Off)
+      case m => warn("? Illegal message: " + m)
     }
 
     case class JobOrg(actorID: Int, proc: Process, path: String)
   }
 
-  private class JobActor(val id: Int, client: Client) extends DaemonActor {
-    val prefix = "[" + id + "] "
-    val clientMask = id << 24
-    var syncID = -1 // accessed only in actor, incremented per query
+  private class JobActor(val id: Int, client: Client) extends Actor {
+    val prefix    : String  = "[" + id + "] "
+    val clientMask: Int     = id << 24
+    var syncID    : Int     = -1 // accessed only in actor, incremented per query
 
-    start()
+    private var path: String = null
 
-    def act(): Unit = {
-      loop {
-        react {
-          case DocOpen(path) => reactWithin(10000L) {
-            case TIMEOUT =>
-              warn(prefix + "Timeout while trying to open document (" + path + ")")
-              MainActor ! JobDone(id, success = false)
-            case DocOpenFailed(`path`) =>
-              warn(prefix + "Failed to open document (" + path + ")")
-              MainActor ! JobDone(id, success = false)
-            case DocOpenSucceeded(`path`, docID, progress) =>
-              inform(prefix + "document opened (" + name + ")")
-              actProcess(name, docID, progress) {
-                success =>
-                  MainActor ! JobDone(id, success)
-              }
-          }
+    override def receive: Receive = {
+      case DocOpen(_path) =>
+        path = _path
+        context.setReceiveTimeout(10000L.milliseconds)
+        context.become(docOpen)
+    }
+
+    def docOpen: Receive = {
+      case ReceiveTimeout =>
+        warn(prefix + "Timeout while trying to open document (" + path + ")")
+        context.become(receive)
+        mainActor ! JobDone(id, success = false)
+      case DocOpenFailed(_path) if _path == path =>
+        context.setReceiveTimeout(Duration.Inf)
+        warn(prefix + "Failed to open document (" + path + ")")
+        context.become(receive)
+        mainActor ! JobDone(id, success = false)
+      case DocOpenSucceeded(_path, docID, progress) if _path == path =>
+        context.setReceiveTimeout(Duration.Inf)
+        inform(prefix + "document opened (" + name + ")")
+        actProcess(name, docID, progress) {
+          success =>
+            context.become(receive)
+            mainActor ! JobDone(id, success)
         }
-      }
     }
 
     def actProcess(name: String, docID: AnyRef, progress: Int => Unit)(fun: Boolean => Unit): Unit = {
@@ -1230,44 +1239,51 @@ class FScapeJobs private(transport: Transport.Net, addr: InetSocketAddress, numT
           val sid = syncID | clientMask
           val msg = Message(path, "query" +: sid +: properties: _*)
           client ! msg
-          reactWithin(timeOut) {
-            case TIMEOUT => timedOut(msg)
-            case Message("/query.reply", `sid`, values@_*) => handler(values)
+          val rcv: Receive = {
+            case ReceiveTimeout => timedOut(msg)
+            case Message("/query.reply", `sid`, values@_*) =>
+              context.setReceiveTimeout(Duration.Inf)
+              handler(values)
           }
+          context.setReceiveTimeout(timeOut.milliseconds)
+          context.become(rcv)
         }
 
         val addr = "/doc/id/" + docID
         client ! Message(addr, "start")
         query("/main", "version" :: Nil) {
           // tricky sync
-          case _ =>
-            var progPerc  = 0
-            var running   = 1
-            var err       = ""
+          _ =>
+            var progPerc = 0
+            var running = 1
+            var err = ""
 
-            loopWhile(running != 0) {
-              reactWithin(1000L) {
-                case TIMEOUT => query(addr, "running" :: "progression" :: "error" :: Nil) {
-                  case Seq(r: Int, p: Float, e: String) =>
-                    running = r
-                    err = e
-                    val perc = (p * 100).toInt
-                    if (perc != progPerc) {
-                      progPerc = perc
-                      progress(perc)
+            val rcv: Receive = {
+              case ReceiveTimeout => query(addr, "running" :: "progression" :: "error" :: Nil) {
+                case Seq(r: Int, p: Float, e: String) =>
+                  running = r
+                  err = e
+                  val perc = (p * 100).toInt
+                  if (perc != progPerc) {
+                    progPerc = perc
+                    progress(perc)
+                  }
+
+                  if (running == 0) {
+                    context.setReceiveTimeout(Duration.Inf)
+                    client ! Message(addr, "close")
+                    if (err != "") {
+                      warn(prefix + "ERROR (" + name + " -- " + err + ")")
+                      fun(false)
+                    } else {
+                      inform(prefix + "Success (" + name + ")")
+                      fun(true)
                     }
-                }
-              }
-            } andThen {
-              client ! Message(addr, "close")
-              if (err != "") {
-                warn(prefix + "ERROR (" + name + " -- " + err + ")")
-                fun(false)
-              } else {
-                inform(prefix + "Success (" + name + ")")
-                fun(true)
+                  }
               }
             }
+            context.setReceiveTimeout(1000L.milliseconds)
+            context.become(rcv)
         }
       } catch {
         case e: IOException =>
